@@ -5,6 +5,7 @@ import HandicapEditor from "./admin/HandicapEditor";
 import TeeTimeEditor from "./admin/TeeTimeEditor";
 import TeamEditor from "./admin/TeamEditor";
 import { Lock, LogOut, RotateCcw, ClipboardList, Users, Clock, Shield } from "lucide-react";
+import SeedData from "./admin/SeedData";
 
 const TABS = [
   { id: "scores",    label: "Scores",    icon: ClipboardList },
@@ -141,6 +142,11 @@ export default function AdminPage() {
             {label}
           </button>
         ))}
+      </div>
+
+      {/* Test data generator */}
+      <div className="mb-5">
+        <SeedData />
       </div>
 
       {tab === "scores"    && <ScoreEntry />}
