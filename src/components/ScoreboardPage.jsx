@@ -3,11 +3,25 @@ import { getScores, getPlayers } from "../data/storage";
 import { rounds } from "../data/tripData";
 import { Trophy, ClipboardList } from "lucide-react";
 
+// Lower index = better countback
+const COUNTBACK_RANK = { B9: 0, L6: 1, L3: 2, L1: 3, F9: 4 };
+const COUNTBACK_LABEL = { B9: "B.9", L6: "L.6", L3: "L.3", L1: "L.1", F9: "F.9" };
+
 function medal(rank) {
   if (rank === 0) return "🥇";
   if (rank === 1) return "🥈";
   if (rank === 2) return "🥉";
   return null;
+}
+
+function sortWithCountback(scores) {
+  return [...scores].sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    // Tied — sort by countback rank (lower = better); no countback goes last
+    const ra = a.countback ? (COUNTBACK_RANK[a.countback] ?? 99) : 99;
+    const rb = b.countback ? (COUNTBACK_RANK[b.countback] ?? 99) : 99;
+    return ra - rb;
+  });
 }
 
 export default function ScoreboardPage() {
@@ -21,7 +35,6 @@ export default function ScoreboardPage() {
     getPlayers().then(setPlayers);
   }, []);
 
-  // Reload scores when day changes
   useEffect(() => {
     getScores().then(setAllScores);
   }, [day]);
@@ -29,12 +42,12 @@ export default function ScoreboardPage() {
   const scores = allScores ?? [];
   const dayScores = scores.filter((s) => s.day === day);
   const hasScores = dayScores.length > 0;
-  const sorted = [...dayScores].sort((a, b) => b.total - a.total);
+  const sorted = sortWithCountback(dayScores);
   const round = rounds[day - 1];
 
-  const selected = selectedPlayer
-    ? dayScores.find((s) => s.playerId === selectedPlayer)
-    : null;
+  // Detect which totals have ties
+  const totalCounts = {};
+  sorted.forEach((s) => { totalCounts[s.total] = (totalCounts[s.total] ?? 0) + 1; });
 
   return (
     <div>
@@ -71,7 +84,6 @@ export default function ScoreboardPage() {
         </div>
       ) : (
         <>
-          {/* Leaderboard */}
           <h3 className="font-semibold text-slate-700 mb-2 flex items-center gap-2">
             <Trophy size={15} /> Leaderboard
           </h3>
@@ -79,34 +91,36 @@ export default function ScoreboardPage() {
             {sorted.map((s, rank) => {
               const player = players.find((p) => p.id === s.playerId);
               const m = medal(rank);
-              const isSelected = selectedPlayer === s.playerId;
+              const isTied = totalCounts[s.total] > 1;
+              const cbLabel = s.countback ? COUNTBACK_LABEL[s.countback] : null;
+
               return (
-                <button
+                <div
                   key={s.playerId}
-                  onClick={() => setSelectedPlayer(isSelected ? null : s.playerId)}
-                  className={`w-full text-left bg-white rounded-xl border shadow-sm px-4 py-3 flex items-center gap-3 transition-all hover:border-emerald-300 ${
-                    isSelected ? "border-emerald-400 ring-1 ring-emerald-200" : "border-slate-200"
-                  }`}
+                  className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-3"
                 >
                   <div className="w-7 text-center">
                     {m ? <span className="text-lg">{m}</span> : <span className="text-xs font-bold text-slate-400">#{rank + 1}</span>}
                   </div>
                   <div className="flex-1 font-semibold text-slate-800">{player?.name}</div>
                   <div className="text-xs text-slate-400 font-medium">Hcp {player?.handicap}</div>
+                  {/* Countback badge — show when tied */}
+                  {isTied && cbLabel && (
+                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                      {cbLabel}
+                    </span>
+                  )}
+                  {isTied && !cbLabel && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 border border-slate-200">
+                      tied
+                    </span>
+                  )}
                   <div className="text-base font-bold text-emerald-700">{s.total}</div>
                   <div className="text-xs text-slate-400">pts</div>
-                </button>
+                </div>
               );
             })}
           </div>
-
-          {selected && (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mt-2">
-              <div className="text-sm font-bold text-slate-700 mb-2">
-                {players.find((p) => p.id === selected.playerId)?.name} — {selected.total} pts
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

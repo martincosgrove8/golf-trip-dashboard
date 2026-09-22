@@ -70,10 +70,10 @@ export async function getScores() {
   return getRemote("golf_scores"); // null = nothing entered yet
 }
 
-export async function setScore(day, playerId, total) {
+export async function setScore(day, playerId, total, countback = null) {
   const current = await getScores() ?? [];
   const idx = current.findIndex((s) => s.day === day && s.playerId === playerId);
-  const entry = { day, playerId, holes: Array(18).fill(0), total: Math.max(0, Number(total) || 0) };
+  const entry = { day, playerId, holes: Array(18).fill(0), total: Math.max(0, Number(total) || 0), countback: countback || null };
   if (idx >= 0) current[idx] = entry; else current.push(entry);
   save("golf_scores", current);
   await dbSet("golf_scores", current);

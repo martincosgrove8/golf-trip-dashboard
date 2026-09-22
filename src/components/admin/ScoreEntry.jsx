@@ -9,11 +9,21 @@ function ptColor(total) {
   return "text-orange-500";
 }
 
+const COUNTBACK_OPTIONS = [
+  { value: "",    label: "—" },
+  { value: "B9",  label: "B.9" },
+  { value: "L6",  label: "L.6" },
+  { value: "L3",  label: "L.3" },
+  { value: "L1",  label: "L.1" },
+  { value: "F9",  label: "F.9" },
+];
+
 export default function ScoreEntry() {
   const [day, setDay] = useState(1);
   const [rounds, setRounds] = useState([]);
   const [players, setPlayers] = useState([]);
   const [totals, setTotals] = useState({});
+  const [countbacks, setCountbacks] = useState({});
   const [saved, setSaved] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -22,17 +32,19 @@ export default function ScoreEntry() {
     getPlayers().then((p) => setPlayers(p.filter((pl) => pl.id <= 15)));
   }, []);
 
-  // Load existing totals whenever day or players change
   useEffect(() => {
     if (!players.length) return;
     getScores().then((scores) => {
       const all = scores ?? [];
-      const init = {};
+      const initTotals = {};
+      const initCb = {};
       players.forEach((p) => {
         const entry = all.find((s) => s.day === day && s.playerId === p.id);
-        init[p.id] = entry?.total ?? "";
+        initTotals[p.id] = entry?.total ?? "";
+        initCb[p.id] = entry?.countback ?? "";
       });
-      setTotals(init);
+      setTotals(initTotals);
+      setCountbacks(initCb);
       setSaved({});
     });
   }, [day, players]);
@@ -43,9 +55,15 @@ export default function ScoreEntry() {
     setSaved((prev) => ({ ...prev, [playerId]: false }));
   }
 
+  function handleCountback(playerId, value) {
+    setCountbacks((prev) => ({ ...prev, [playerId]: value }));
+    setSaved((prev) => ({ ...prev, [playerId]: false }));
+  }
+
   async function savePlayer(playerId) {
     const total = Number(totals[playerId]) || 0;
-    await setScore(day, playerId, total);
+    const cb = countbacks[playerId] || null;
+    await setScore(day, playerId, total, cb);
     setSaved((prev) => ({ ...prev, [playerId]: true }));
   }
 
@@ -93,14 +111,18 @@ export default function ScoreEntry() {
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100">
               <th className="text-left px-4 py-2 font-semibold text-slate-600">Player</th>
-              <th className="text-right px-4 py-2 font-semibold text-slate-600 w-12 text-xs text-slate-400 font-normal">HCP</th>
-              <th className="text-center px-4 py-2 font-semibold text-slate-600 w-32">Stableford Pts</th>
-              <th className="w-10" />
+              <th className="text-right px-3 py-2 text-xs text-slate-400 font-normal w-10">HCP</th>
+              <th className="text-center px-3 py-2 font-semibold text-slate-600 w-28">Pts</th>
+              <th className="text-center px-3 py-2 font-semibold text-slate-600 w-24">
+                <span className="text-xs font-normal text-slate-400">Countback</span>
+              </th>
+              <th className="w-8" />
             </tr>
           </thead>
           <tbody>
             {players.map((p, i) => {
               const val = totals[p.id] ?? "";
+              const cb  = countbacks[p.id] ?? "";
               const isSaved = saved[p.id];
               return (
                 <tr
@@ -109,9 +131,9 @@ export default function ScoreEntry() {
                     isSaved ? "bg-emerald-50/40" : i % 2 === 0 ? "" : "bg-slate-50/50"
                   }`}
                 >
-                  <td className="px-4 py-2.5 font-medium text-slate-700">{p.name}</td>
-                  <td className="px-4 py-2.5 text-right text-xs text-slate-400">{p.handicap}</td>
-                  <td className="px-4 py-2.5 text-center">
+                  <td className="px-4 py-2 font-medium text-slate-700">{p.name}</td>
+                  <td className="px-3 py-2 text-right text-xs text-slate-400">{p.handicap}</td>
+                  <td className="px-3 py-2 text-center">
                     <input
                       type="number"
                       min={0}
@@ -125,6 +147,18 @@ export default function ScoreEntry() {
                       }`}
                     />
                   </td>
+                  <td className="px-3 py-2 text-center">
+                    <select
+                      value={cb}
+                      onChange={(e) => { handleCountback(p.id, e.target.value); }}
+                      onBlur={() => savePlayer(p.id)}
+                      className="text-xs border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 text-slate-600 bg-white w-full"
+                    >
+                      {COUNTBACK_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </td>
                   <td className="pr-3 text-center">
                     {isSaved && <CheckCircle size={14} className="text-emerald-500 inline" />}
                   </td>
@@ -134,6 +168,7 @@ export default function ScoreEntry() {
           </tbody>
         </table>
       </div>
+      <p className="text-xs text-slate-400 mt-2">Countback only needed when players are tied — leave blank otherwise.</p>
     </div>
   );
 }
