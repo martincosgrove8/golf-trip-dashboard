@@ -4,7 +4,7 @@ import { Shuffle, CheckCircle, Loader } from "lucide-react";
 
 const PLAYER_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
-const TEAM_NAMES  = ["Eagles", "Birdies", "Bogeys", "Albatross", "Condors"];
+const TEAM_NAMES  = ["Team 1", "Team 2", "Team 3", "Team 4", "Team 5"];
 const TEAM_COLORS = ["#15803D", "#0F766E", "#1D4ED8", "#7C3AED", "#B45309"];
 
 function shuffle(arr) {
