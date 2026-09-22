@@ -62,10 +62,7 @@ export default function HomePage() {
                 className="px-3 py-2 flex items-center justify-between text-white text-sm font-bold"
                 style={{ backgroundColor: team.color }}
               >
-                <span className="flex items-center gap-2">
-                  {scoresEntered ? (rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : `#${rank + 1}`) : `#${rank + 1}`}
-                  {team.name}
-                </span>
+                <span>{team.name}</span>
                 <span>{scoresEntered ? `${team.total} pts` : "— pts"}</span>
               </div>
               <div className="p-2 flex flex-wrap gap-1">
