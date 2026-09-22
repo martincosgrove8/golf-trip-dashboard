@@ -104,6 +104,8 @@ export default function ScoreboardPage() {
                   </div>
                   <div className="flex-1 font-semibold text-slate-800">{player?.name}</div>
                   <div className="text-xs text-slate-400 font-medium">Hcp {player?.handicap}</div>
+                  <div className="text-base font-bold text-emerald-700">{s.total}</div>
+                  <div className="text-xs text-slate-400">pts</div>
                   {/* Countback badge — show when tied */}
                   {isTied && cbLabel && (
                     <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
@@ -115,8 +117,6 @@ export default function ScoreboardPage() {
                       tied
                     </span>
                   )}
-                  <div className="text-base font-bold text-emerald-700">{s.total}</div>
-                  <div className="text-xs text-slate-400">pts</div>
                 </div>
               );
             })}
