@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getScores, setScore, getRounds, getPlayers } from "../../data/storage";
-import { Save, CheckCircle } from "lucide-react";
+import { Save, CheckCircle, ArrowDownUp } from "lucide-react";
 
 function ptColor(total) {
   if (total >= 40) return "text-emerald-700 font-bold";
@@ -26,6 +26,7 @@ export default function ScoreEntry() {
   const [countbacks, setCountbacks] = useState({});
   const [saved, setSaved] = useState({});
   const [saving, setSaving] = useState(false);
+  const [sortByScore, setSortByScore] = useState(false);
 
   useEffect(() => {
     getRounds().then(setRounds);
@@ -75,6 +76,10 @@ export default function ScoreEntry() {
 
   const round = rounds[day - 1];
 
+  const displayPlayers = sortByScore
+    ? [...players].sort((a, b) => (Number(totals[b.id]) || 0) - (Number(totals[a.id]) || 0))
+    : players;
+
   return (
     <div>
       {/* Day selector */}
@@ -98,13 +103,25 @@ export default function ScoreEntry() {
         <div className="text-xs text-slate-500 mb-4">{round.day} — {round.course}</div>
       )}
 
-      <button
-        onClick={saveAll}
-        disabled={saving}
-        className="mb-4 flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60"
-      >
-        <Save size={14} /> {saving ? "Saving…" : "Save All"}
-      </button>
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={saveAll}
+          disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60"
+        >
+          <Save size={14} /> {saving ? "Saving…" : "Save All"}
+        </button>
+        <button
+          onClick={() => setSortByScore((s) => !s)}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors ${
+            sortByScore
+              ? "bg-emerald-600 text-white border-emerald-600"
+              : "bg-white text-slate-600 border-slate-300 hover:border-emerald-400"
+          }`}
+        >
+          <ArrowDownUp size={13} /> Sort by score
+        </button>
+      </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
@@ -120,7 +137,7 @@ export default function ScoreEntry() {
             </tr>
           </thead>
           <tbody>
-            {players.map((p, i) => {
+            {displayPlayers.map((p, i) => {
               const val = totals[p.id] ?? "";
               const cb  = countbacks[p.id] ?? "";
               const isSaved = saved[p.id];
