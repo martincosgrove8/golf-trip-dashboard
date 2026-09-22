@@ -22,8 +22,8 @@ const linkClass = ({ isActive }) =>
   }`;
 
 const bottomClass = ({ isActive }) =>
-  `flex flex-col items-center gap-0.5 py-2 px-1 text-xs font-medium transition-all ${
-    isActive ? "text-emerald-600" : "text-slate-500"
+  `flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 text-xs font-medium transition-all rounded-lg ${
+    isActive ? "text-emerald-600" : "text-slate-400"
   }`;
 
 export default function Layout({ children }) {
@@ -56,11 +56,14 @@ export default function Layout({ children }) {
       </div>
 
       {/* Bottom nav — mobile */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around px-1 py-1 lg:hidden z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex items-center px-1 pb-safe lg:hidden z-50" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {nav.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} end={to === "/"} className={bottomClass}>
-            <Icon size={20} />
-            <span>{label}</span>
+          <NavLink key={to} to={to} end={to === "/"} className={bottomClass} title={label}>
+            {({ isActive }) => (
+              <span className={`p-1.5 rounded-lg transition-all ${isActive ? "bg-emerald-50" : ""}`}>
+                <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
