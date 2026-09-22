@@ -1,4 +1,5 @@
 import { trip } from "../data/tripData";
+import heroImg from "/hero.jpg";
 
 function getDaysUntil(dateStr) {
   const today = new Date();
@@ -20,7 +21,7 @@ export default function TripHeader() {
       {/* Background photo */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/hero.jpg')" }}
+        style={{ backgroundImage: `url(${heroImg})` }}
       />
       {/* Dark gradient overlay — heavier at bottom for text legibility */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/30 to-black/70" />
