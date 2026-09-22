@@ -1,148 +1,165 @@
+import { supabase } from "./supabase";
 import {
-  scores as defaultScores,
-  rounds as defaultRounds,
   players as defaultPlayers,
+  rounds as defaultRounds,
 } from "./tripData";
 
-const KEYS = {
-  scores: "golf_scores",
-  rounds: "golf_rounds",
-  roundsReleased: "golf_rounds_released",
-  players: "golf_players",
-  teams: "golf_teams",
-  authed: "golf_admin_authed",
-};
-
-function load(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
+// ─── Local helpers ───────────────────────────────────────────────────────────
 
 function save(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+}
+function load(key) {
+  try {
+    const v = localStorage.getItem(key);
+    return v !== null ? JSON.parse(v) : null;
+  } catch (_) { return null; }
 }
 
-// ─── Scores ──────────────────────────────────────────────────────────────────
-// Returns null when no scores have been entered yet (not the tripData defaults).
+// ─── Supabase helpers ─────────────────────────────────────────────────────────
 
-export function getScores() {
-  return load(KEYS.scores); // null = no scores entered
+async function dbGet(key) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from("golf_data")
+      .select("value")
+      .eq("key", key)
+      .maybeSingle();
+    if (error) return null;
+    return data?.value ?? null;
+  } catch (_) { return null; }
 }
 
-export function setScore(day, playerId, total) {
-  const all = load(KEYS.scores) ?? [];
-  const t = Math.max(0, Number(total) || 0);
-  const idx = all.findIndex((s) => s.day === day && s.playerId === playerId);
-  const entry = { day, playerId, holes: Array(18).fill(0), total: t };
-  if (idx >= 0) all[idx] = entry;
-  else all.push(entry);
-  save(KEYS.scores, all);
+async function dbSet(key, value) {
+  if (!supabase) return;
+  try {
+    await supabase
+      .from("golf_data")
+      .upsert({ key, value }, { onConflict: "key" });
+  } catch (_) {}
 }
 
-export function resetScores() {
-  localStorage.removeItem(KEYS.scores);
+async function dbDelete(key) {
+  if (!supabase) return;
+  try {
+    await supabase.from("golf_data").delete().eq("key", key);
+  } catch (_) {}
 }
 
-// ─── Players (handicaps) ─────────────────────────────────────────────────────
+// Read from Supabase, fall back to localStorage cache
+async function getRemote(key) {
+  const remote = await dbGet(key);
+  if (remote !== null) {
+    save(key, remote); // keep local cache fresh
+    return remote;
+  }
+  return load(key); // offline fallback
+}
 
-export function getPlayers() {
-  const overrides = load(KEYS.players);
-  if (!overrides) return defaultPlayers;
+// ─── Auth (localStorage only — per-session flag) ──────────────────────────────
+
+export const ADMIN_PASSWORD = "algarve2026";
+export const isAuthed  = () => localStorage.getItem("golf_admin_authed") === "true";
+export const login     = (pw) => { if (pw === ADMIN_PASSWORD) localStorage.setItem("golf_admin_authed", "true"); return pw === ADMIN_PASSWORD; };
+export const logout    = () => localStorage.removeItem("golf_admin_authed");
+
+// ─── Scores ───────────────────────────────────────────────────────────────────
+
+export async function getScores() {
+  return getRemote("golf_scores"); // null = nothing entered yet
+}
+
+export async function setScore(day, playerId, total) {
+  const current = await getScores() ?? [];
+  const idx = current.findIndex((s) => s.day === day && s.playerId === playerId);
+  const entry = { day, playerId, holes: Array(18).fill(0), total: Math.max(0, Number(total) || 0) };
+  if (idx >= 0) current[idx] = entry; else current.push(entry);
+  save("golf_scores", current);
+  await dbSet("golf_scores", current);
+}
+
+export async function resetScores() {
+  localStorage.removeItem("golf_scores");
+  await dbDelete("golf_scores");
+}
+
+// ─── Players / Handicaps ──────────────────────────────────────────────────────
+
+export async function getPlayers() {
+  const overrides = await getRemote("golf_players") ?? [];
   return defaultPlayers.map((p) => {
     const o = overrides.find((x) => x.id === p.id);
     return o ? { ...p, handicap: o.handicap } : p;
   });
 }
 
-export function setHandicap(playerId, handicap) {
-  const overrides = load(KEYS.players) ?? [];
+export async function setHandicap(playerId, handicap) {
+  const overrides = (await getRemote("golf_players")) ?? [];
   const idx = overrides.findIndex((x) => x.id === playerId);
   const entry = { id: playerId, handicap: Number(handicap) };
-  if (idx >= 0) overrides[idx] = entry;
-  else overrides.push(entry);
-  save(KEYS.players, overrides);
+  if (idx >= 0) overrides[idx] = entry; else overrides.push(entry);
+  save("golf_players", overrides);
+  await dbSet("golf_players", overrides);
 }
 
-export function resetHandicaps() {
-  localStorage.removeItem(KEYS.players);
+export async function resetHandicaps() {
+  localStorage.removeItem("golf_players");
+  await dbDelete("golf_players");
 }
 
-// ─── Rounds (tee times) ──────────────────────────────────────────────────────
-// getRounds always returns the full list (for admin editing).
-// getReleasedRounds returns only rounds the admin has published — null entries
-// for unreleased rounds so the public page can show a locked placeholder.
+// ─── Rounds / Tee Times ───────────────────────────────────────────────────────
 
-export function getRounds() {
-  const overrides = load(KEYS.rounds);
-  if (!overrides) return defaultRounds;
-  return defaultRounds.map((r, i) => {
-    const o = overrides[i];
-    return o ? { ...r, groups: o.groups } : r;
-  });
+export async function getRounds() {
+  const overrides = await getRemote("golf_rounds") ?? [];
+  return defaultRounds.map((r, i) => overrides[i] ? { ...r, groups: overrides[i].groups } : r);
 }
 
-export function getReleasedFlags() {
-  return load(KEYS.roundsReleased) ?? defaultRounds.map(() => false);
+export async function setRoundGroups(roundIndex, groups) {
+  const overrides = (await getRemote("golf_rounds")) ?? defaultRounds.map(() => null);
+  overrides[roundIndex] = { groups };
+  save("golf_rounds", overrides);
+  await dbSet("golf_rounds", overrides);
 }
 
-export function setReleased(roundIndex, released) {
-  const flags = getReleasedFlags();
+export async function getReleasedFlags() {
+  const flags = await getRemote("golf_rounds_released");
+  return flags ?? defaultRounds.map(() => false);
+}
+
+export async function setReleased(roundIndex, released) {
+  const flags = await getReleasedFlags();
   flags[roundIndex] = released;
-  save(KEYS.roundsReleased, flags);
+  save("golf_rounds_released", flags);
+  await dbSet("golf_rounds_released", flags);
 }
 
-export function setRoundGroups(roundIndex, groups) {
-  const existing = load(KEYS.rounds) ?? defaultRounds.map(() => null);
-  existing[roundIndex] = { groups };
-  save(KEYS.rounds, existing);
+export async function resetRounds() {
+  localStorage.removeItem("golf_rounds");
+  localStorage.removeItem("golf_rounds_released");
+  await dbDelete("golf_rounds");
+  await dbDelete("golf_rounds_released");
 }
 
-export function resetRounds() {
-  localStorage.removeItem(KEYS.rounds);
-  localStorage.removeItem(KEYS.roundsReleased);
+// ─── Teams ────────────────────────────────────────────────────────────────────
+
+export async function getTeams() {
+  return getRemote("golf_teams"); // null = no teams created yet
 }
 
-// ─── Teams ───────────────────────────────────────────────────────────────────
-// Returns null when no teams have been created yet.
-
-export function getTeams() {
-  return load(KEYS.teams); // null = no teams created
+export async function saveTeams(teams) {
+  save("golf_teams", teams);
+  await dbSet("golf_teams", teams);
 }
 
-export function saveTeams(teams) {
-  save(KEYS.teams, teams);
+export async function resetTeams() {
+  localStorage.removeItem("golf_teams");
+  await dbDelete("golf_teams");
 }
 
-export function resetTeams() {
-  localStorage.removeItem(KEYS.teams);
-}
+// ─── Reset all ────────────────────────────────────────────────────────────────
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
-
-export const ADMIN_PASSWORD = "algarve2026";
-
-export function isAuthed() {
-  return localStorage.getItem(KEYS.authed) === "true";
-}
-
-export function login(password) {
-  if (password === ADMIN_PASSWORD) {
-    localStorage.setItem(KEYS.authed, "true");
-    return true;
-  }
-  return false;
-}
-
-export function logout() {
-  localStorage.removeItem(KEYS.authed);
-}
-
-// ─── Reset all ───────────────────────────────────────────────────────────────
-
-export function resetAll() {
-  Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
+export async function resetAll() {
+  await Promise.all([resetScores(), resetHandicaps(), resetRounds(), resetTeams()]);
+  logout();
 }

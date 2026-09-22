@@ -1,102 +1,89 @@
-import { useState } from "react";
-import { getRounds, setRoundGroups, getReleasedFlags, setReleased } from "../../data/storage";
-import { getPlayers } from "../../data/storage";
-import { players as allPlayers } from "../../data/tripData";
+import { useState, useEffect } from "react";
+import { getRounds, setRoundGroups, getReleasedFlags, setReleased, getPlayers } from "../../data/storage";
+import { players as seedPlayers } from "../../data/tripData";
 import { Save, CheckCircle, Plus, X, Eye, EyeOff } from "lucide-react";
 
 export default function TeeTimeEditor() {
   const [roundIdx, setRoundIdx] = useState(0);
-  const [rounds, setRounds] = useState(() => getRounds());
-  const [released, setReleasedState] = useState(() => getReleasedFlags());
+  const [rounds, setRounds] = useState([]);
+  const [released, setReleasedState] = useState([]);
+  const [players, setPlayers] = useState([]);
   const [saved, setSaved] = useState(false);
-  const players = getPlayers();
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    Promise.all([getRounds(), getReleasedFlags(), getPlayers()]).then(([r, rel, p]) => {
+      setRounds(r);
+      setReleasedState(rel);
+      setPlayers(p);
+      setLoaded(true);
+    });
+  }, []);
+
+  if (!loaded) return null;
 
   const round = rounds[roundIdx];
 
   function handleTime(groupIdx, value) {
-    setRounds((prev) => {
-      const updated = prev.map((r, i) => {
-        if (i !== roundIdx) return r;
-        const groups = r.groups.map((g, gi) =>
-          gi === groupIdx ? { ...g, time: value } : g
-        );
-        return { ...r, groups };
-      });
-      return updated;
-    });
+    setRounds((prev) => prev.map((r, i) => {
+      if (i !== roundIdx) return r;
+      return { ...r, groups: r.groups.map((g, gi) => gi === groupIdx ? { ...g, time: value } : g) };
+    }));
     setSaved(false);
   }
 
   function removePlayer(groupIdx, playerId) {
-    setRounds((prev) => {
-      const updated = prev.map((r, i) => {
-        if (i !== roundIdx) return r;
-        const groups = r.groups.map((g, gi) =>
-          gi === groupIdx ? { ...g, players: g.players.filter((id) => id !== playerId) } : g
-        );
-        return { ...r, groups };
-      });
-      return updated;
-    });
+    setRounds((prev) => prev.map((r, i) => {
+      if (i !== roundIdx) return r;
+      return { ...r, groups: r.groups.map((g, gi) => gi === groupIdx ? { ...g, players: g.players.filter((id) => id !== playerId) } : g) };
+    }));
     setSaved(false);
   }
 
   function addPlayer(groupIdx, playerId) {
     if (!playerId) return;
-    setRounds((prev) => {
-      const updated = prev.map((r, i) => {
-        if (i !== roundIdx) return r;
-        const groups = r.groups.map((g, gi) => {
-          if (gi !== groupIdx) return g;
-          if (g.players.includes(playerId)) return g;
+    setRounds((prev) => prev.map((r, i) => {
+      if (i !== roundIdx) return r;
+      return {
+        ...r, groups: r.groups.map((g, gi) => {
+          if (gi !== groupIdx || g.players.includes(playerId)) return g;
           return { ...g, players: [...g.players, playerId] };
-        });
-        return { ...r, groups };
-      });
-      return updated;
-    });
+        })
+      };
+    }));
     setSaved(false);
   }
 
   function addGroup() {
-    setRounds((prev) => {
-      const updated = prev.map((r, i) => {
-        if (i !== roundIdx) return r;
-        return { ...r, groups: [...r.groups, { time: "", players: [] }] };
-      });
-      return updated;
-    });
+    setRounds((prev) => prev.map((r, i) =>
+      i !== roundIdx ? r : { ...r, groups: [...r.groups, { time: "", players: [] }] }
+    ));
     setSaved(false);
   }
 
   function removeGroup(groupIdx) {
-    setRounds((prev) => {
-      const updated = prev.map((r, i) => {
-        if (i !== roundIdx) return r;
-        return { ...r, groups: r.groups.filter((_, gi) => gi !== groupIdx) };
-      });
-      return updated;
-    });
+    setRounds((prev) => prev.map((r, i) =>
+      i !== roundIdx ? r : { ...r, groups: r.groups.filter((_, gi) => gi !== groupIdx) }
+    ));
     setSaved(false);
   }
 
-  function save() {
-    setRoundGroups(roundIdx, round.groups);
+  async function save() {
+    setSaving(true);
+    await setRoundGroups(roundIdx, round.groups);
+    setSaving(false);
     setSaved(true);
   }
 
-  function toggleReleased() {
+  async function toggleReleased() {
     const next = !released[roundIdx];
-    setReleased(roundIdx, next);
-    setReleasedState((prev) => {
-      const copy = [...prev];
-      copy[roundIdx] = next;
-      return copy;
-    });
+    await setReleased(roundIdx, next);
+    setReleasedState((prev) => { const copy = [...prev]; copy[roundIdx] = next; return copy; });
   }
 
   const assignedIds = round.groups.flatMap((g) => g.players);
-  const unassigned = allPlayers.filter((p) => !assignedIds.includes(p.id));
+  const unassigned = seedPlayers.filter((p) => !assignedIds.includes(p.id));
   const isReleased = released[roundIdx];
 
   return (
@@ -131,7 +118,6 @@ export default function TeeTimeEditor() {
               ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
               : "bg-slate-50 text-slate-600 border-slate-300 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300"
           }`}
-          title={isReleased ? "Click to hide from players" : "Click to publish to players"}
         >
           {isReleased ? <><Eye size={13} /> Published</> : <><EyeOff size={13} /> Hidden</>}
         </button>
@@ -148,10 +134,7 @@ export default function TeeTimeEditor() {
                 onChange={(e) => handleTime(gi, e.target.value)}
                 className="bg-slate-600 text-white text-xs rounded px-2 py-0.5 border-0 outline-none focus:ring-1 focus:ring-emerald-400"
               />
-              <button
-                onClick={() => removeGroup(gi)}
-                className="ml-auto text-slate-400 hover:text-red-400 transition-colors"
-              >
+              <button onClick={() => removeGroup(gi)} className="ml-auto text-slate-400 hover:text-red-400 transition-colors">
                 <X size={14} />
               </button>
             </div>
@@ -159,15 +142,9 @@ export default function TeeTimeEditor() {
               {g.players.map((id) => {
                 const p = players.find((pl) => pl.id === id);
                 return (
-                  <span
-                    key={id}
-                    className="flex items-center gap-1 bg-slate-100 text-slate-700 text-xs font-medium px-2 py-1 rounded-full"
-                  >
+                  <span key={id} className="flex items-center gap-1 bg-slate-100 text-slate-700 text-xs font-medium px-2 py-1 rounded-full">
                     {p?.name ?? `Player ${id}`}
-                    <button
-                      onClick={() => removePlayer(gi, id)}
-                      className="text-slate-400 hover:text-red-500 ml-0.5"
-                    >
+                    <button onClick={() => removePlayer(gi, id)} className="text-slate-400 hover:text-red-500 ml-0.5">
                       <X size={11} />
                     </button>
                   </span>
@@ -179,7 +156,7 @@ export default function TeeTimeEditor() {
                 className="text-xs border border-dashed border-slate-300 rounded-full px-2 py-1 text-slate-500 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
               >
                 <option value="" disabled>+ Add player</option>
-                {allPlayers
+                {seedPlayers
                   .filter((p) => !assignedIds.includes(p.id))
                   .map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
@@ -206,9 +183,10 @@ export default function TeeTimeEditor() {
         </button>
         <button
           onClick={save}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60"
         >
-          {saved ? <><CheckCircle size={14} /> Saved</> : <><Save size={14} /> Save Round</>}
+          {saved ? <><CheckCircle size={14} /> Saved</> : <><Save size={14} /> {saving ? "Saving…" : "Save Round"}</>}
         </button>
       </div>
     </div>

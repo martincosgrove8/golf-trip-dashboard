@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { getScores, setScore } from "../../data/storage";
-import { getRounds, getPlayers } from "../../data/storage";
+import { getScores, setScore, getRounds, getPlayers } from "../../data/storage";
 import { Save, CheckCircle } from "lucide-react";
 
 function ptColor(total) {
@@ -12,23 +11,31 @@ function ptColor(total) {
 
 export default function ScoreEntry() {
   const [day, setDay] = useState(1);
-  const rounds = getRounds();
-  const players = getPlayers().filter((p) => p.id <= 15);
-
+  const [rounds, setRounds] = useState([]);
+  const [players, setPlayers] = useState([]);
   const [totals, setTotals] = useState({});
   const [saved, setSaved] = useState({});
+  const [saving, setSaving] = useState(false);
 
-  // Load existing totals from storage whenever day changes
   useEffect(() => {
-    const scores = getScores() ?? [];
-    const init = {};
-    players.forEach((p) => {
-      const entry = scores.find((s) => s.day === day && s.playerId === p.id);
-      init[p.id] = entry?.total ?? "";
+    getRounds().then(setRounds);
+    getPlayers().then((p) => setPlayers(p.filter((pl) => pl.id <= 15)));
+  }, []);
+
+  // Load existing totals whenever day or players change
+  useEffect(() => {
+    if (!players.length) return;
+    getScores().then((scores) => {
+      const all = scores ?? [];
+      const init = {};
+      players.forEach((p) => {
+        const entry = all.find((s) => s.day === day && s.playerId === p.id);
+        init[p.id] = entry?.total ?? "";
+      });
+      setTotals(init);
+      setSaved({});
     });
-    setTotals(init);
-    setSaved({});
-  }, [day]);
+  }, [day, players]);
 
   function handleChange(playerId, value) {
     const v = value === "" ? "" : Math.max(0, Number(value) || 0);
@@ -36,14 +43,16 @@ export default function ScoreEntry() {
     setSaved((prev) => ({ ...prev, [playerId]: false }));
   }
 
-  function savePlayer(playerId) {
+  async function savePlayer(playerId) {
     const total = Number(totals[playerId]) || 0;
-    setScore(day, playerId, total);
+    await setScore(day, playerId, total);
     setSaved((prev) => ({ ...prev, [playerId]: true }));
   }
 
-  function saveAll() {
-    players.forEach((p) => savePlayer(p.id));
+  async function saveAll() {
+    setSaving(true);
+    await Promise.all(players.map((p) => savePlayer(p.id)));
+    setSaving(false);
   }
 
   const round = rounds[day - 1];
@@ -73,9 +82,10 @@ export default function ScoreEntry() {
 
       <button
         onClick={saveAll}
-        className="mb-4 flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
+        disabled={saving}
+        className="mb-4 flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60"
       >
-        <Save size={14} /> Save All
+        <Save size={14} /> {saving ? "Saving…" : "Save All"}
       </button>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

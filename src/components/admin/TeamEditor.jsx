@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { getTeams, saveTeams } from "../../data/storage";
-import { getPlayers } from "../../data/storage";
+import { useState, useEffect } from "react";
+import { getTeams, saveTeams, getPlayers } from "../../data/storage";
 import { Plus, Trash2, Save, CheckCircle, Users } from "lucide-react";
 
 const PALETTE = [
@@ -18,11 +17,16 @@ function newTeam(index) {
 }
 
 export default function TeamEditor() {
-  const allPlayers = getPlayers().filter((p) => p.id <= 15);
-  const [teams, setTeams] = useState(() => getTeams() ?? []);
+  const [allPlayers, setAllPlayers] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // All player IDs already assigned to any team
+  useEffect(() => {
+    getPlayers().then((p) => setAllPlayers(p.filter((pl) => pl.id <= 15)));
+    getTeams().then((t) => setTeams(t ?? []));
+  }, []);
+
   const assignedIds = teams.flatMap((t) => t.players);
   const unassigned = allPlayers.filter((p) => !assignedIds.includes(p.id));
 
@@ -62,8 +66,10 @@ export default function TeamEditor() {
     setSaved(false);
   }
 
-  function handleSave() {
-    saveTeams(teams);
+  async function handleSave() {
+    setSaving(true);
+    await saveTeams(teams);
+    setSaving(false);
     setSaved(true);
   }
 
@@ -73,7 +79,6 @@ export default function TeamEditor() {
         Create teams, assign players, and pick colours. Teams will appear on the Overview and Leaderboard pages once saved.
       </p>
 
-      {/* Unassigned warning */}
       {unassigned.length > 0 && teams.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-4 text-xs text-amber-700 flex items-start gap-2">
           <Users size={13} className="mt-0.5 shrink-0" />
@@ -82,28 +87,22 @@ export default function TeamEditor() {
       )}
 
       <div className="space-y-4 mb-4">
-        {teams.map((team, idx) => {
-          // Players available to add to THIS team = not in any team yet
+        {teams.map((team) => {
           const available = allPlayers.filter((p) => !assignedIds.includes(p.id));
           return (
             <div key={team.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              {/* Team header */}
               <div
                 className="px-4 py-2.5 flex items-center gap-3"
                 style={{ backgroundColor: team.color + "18", borderBottom: `2px solid ${team.color}40` }}
               >
-                {/* Colour picker */}
-                <div className="relative">
-                  <input
-                    type="color"
-                    value={team.color}
-                    onChange={(e) => updateTeam(team.id, { color: e.target.value })}
-                    className="w-7 h-7 rounded-full border-2 border-white shadow cursor-pointer"
-                    style={{ padding: 0, backgroundColor: team.color }}
-                    title="Pick team colour"
-                  />
-                </div>
-                {/* Name input */}
+                <input
+                  type="color"
+                  value={team.color}
+                  onChange={(e) => updateTeam(team.id, { color: e.target.value })}
+                  className="w-7 h-7 rounded-full border-2 border-white shadow cursor-pointer"
+                  style={{ padding: 0, backgroundColor: team.color }}
+                  title="Pick team colour"
+                />
                 <input
                   type="text"
                   value={team.name}
@@ -112,37 +111,21 @@ export default function TeamEditor() {
                   style={{ color: team.color }}
                   placeholder="Team name"
                 />
-                <button
-                  onClick={() => removeTeam(team.id)}
-                  className="text-slate-400 hover:text-red-500 transition-colors ml-auto"
-                  title="Remove team"
-                >
+                <button onClick={() => removeTeam(team.id)} className="text-slate-400 hover:text-red-500 transition-colors ml-auto" title="Remove team">
                   <Trash2 size={15} />
                 </button>
               </div>
 
-              {/* Players */}
               <div className="p-3 flex flex-wrap gap-2">
                 {team.players.map((pid) => {
                   const p = allPlayers.find((pl) => pl.id === pid);
                   return (
-                    <span
-                      key={pid}
-                      className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-white"
-                      style={{ backgroundColor: team.color }}
-                    >
+                    <span key={pid} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-white" style={{ backgroundColor: team.color }}>
                       {p?.name ?? `Player ${pid}`}
-                      <button
-                        onClick={() => removePlayerFromTeam(team.id, pid)}
-                        className="opacity-70 hover:opacity-100 ml-0.5"
-                      >
-                        ×
-                      </button>
+                      <button onClick={() => removePlayerFromTeam(team.id, pid)} className="opacity-70 hover:opacity-100 ml-0.5">×</button>
                     </span>
                   );
                 })}
-
-                {/* Add player dropdown — only unassigned players */}
                 <select
                   value=""
                   onChange={(e) => { addPlayerToTeam(team.id, Number(e.target.value)); }}
@@ -174,9 +157,10 @@ export default function TeamEditor() {
         </button>
         <button
           onClick={handleSave}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60"
         >
-          {saved ? <><CheckCircle size={14} /> Saved</> : <><Save size={14} /> Save Teams</>}
+          {saved ? <><CheckCircle size={14} /> Saved</> : <><Save size={14} /> {saving ? "Saving…" : "Save Teams"}</>}
         </button>
       </div>
     </div>

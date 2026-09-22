@@ -1,9 +1,6 @@
-import { useState } from "react";
-import { getScores, getPlayers, getTeams } from "../data/storage";
+import { useState, useEffect } from "react";
+import { getScores, getPlayers } from "../data/storage";
 import { rounds } from "../data/tripData";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-} from "recharts";
 import { Trophy, ClipboardList } from "lucide-react";
 
 function medal(rank) {
@@ -16,25 +13,24 @@ function medal(rank) {
 export default function ScoreboardPage() {
   const [day, setDay] = useState(1);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
-  const allScores = getScores(); // null if nothing entered yet
-  const players = getPlayers();
-  const teams = getTeams() ?? [];
+  const [allScores, setAllScores] = useState(undefined);
+  const [players, setPlayers] = useState([]);
+
+  useEffect(() => {
+    getScores().then(setAllScores);
+    getPlayers().then(setPlayers);
+  }, []);
+
+  // Reload scores when day changes
+  useEffect(() => {
+    getScores().then(setAllScores);
+  }, [day]);
 
   const scores = allScores ?? [];
   const dayScores = scores.filter((s) => s.day === day);
   const hasScores = dayScores.length > 0;
   const sorted = [...dayScores].sort((a, b) => b.total - a.total);
   const round = rounds[day - 1];
-
-  const chartData = sorted.map((s) => {
-    const player = players.find((p) => p.id === s.playerId);
-    const team = teams.find((t) => t.players.includes(s.playerId));
-    return {
-      name: player?.name?.split(" ")[0] ?? "?",
-      total: s.total,
-      color: team?.color ?? "#64748b",
-    };
-  });
 
   const selected = selectedPlayer
     ? dayScores.find((s) => s.playerId === selectedPlayer)
@@ -75,28 +71,6 @@ export default function ScoreboardPage() {
         </div>
       ) : (
         <>
-          {/* Bar chart */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-5">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-              Stableford Points
-            </div>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 4, left: -10 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} domain={[0, "dataMax + 8"]} />
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
-                  formatter={(v) => [`${v} pts`, "Stableford"]}
-                />
-                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} opacity={0.85} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
           {/* Leaderboard */}
           <h3 className="font-semibold text-slate-700 mb-2 flex items-center gap-2">
             <Trophy size={15} /> Leaderboard

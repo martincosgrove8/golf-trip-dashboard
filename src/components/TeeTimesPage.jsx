@@ -1,20 +1,34 @@
-import { useState } from "react";
-import { getRounds, getReleasedFlags, getTeams } from "../data/storage";
-import { getPlayers } from "../data/storage";
+import { useState, useEffect } from "react";
+import { getRounds, getReleasedFlags, getTeams, getPlayers } from "../data/storage";
 import { Clock, Flag, Users, Lock } from "lucide-react";
 
 export default function TeeTimesPage() {
-  const rounds = getRounds();
-  const released = getReleasedFlags();
-  const teams = getTeams() ?? [];
-  const players = getPlayers();
+  const [rounds, setRounds] = useState([]);
+  const [released, setReleased] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [players, setPlayers] = useState([]);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [loaded, setLoaded] = useState(false);
 
-  // Default to first released round, or 0
-  const firstReleased = released.findIndex(Boolean);
-  const [selectedDay, setSelectedDay] = useState(firstReleased >= 0 ? firstReleased : 0);
+  useEffect(() => {
+    Promise.all([getRounds(), getReleasedFlags(), getTeams(), getPlayers()]).then(
+      ([r, rel, t, p]) => {
+        setRounds(r);
+        setReleased(rel);
+        setTeams(t ?? []);
+        setPlayers(p);
+        const first = rel.findIndex(Boolean);
+        setSelectedDay(first >= 0 ? first : 0);
+        setLoaded(true);
+      }
+    );
+  }, []);
+
+  if (!loaded) return null;
 
   const round = rounds[selectedDay];
   const isReleased = released[selectedDay];
+  const anyReleased = released.some(Boolean);
 
   function getPlayer(id) {
     return players.find((p) => p.id === id) ?? { name: `Player ${id}` };
@@ -30,8 +44,6 @@ export default function TeeTimesPage() {
     const team = teams.find((t) => t.players.includes(id));
     return team ? team.color : "#94a3b8";
   }
-
-  const anyReleased = released.some(Boolean);
 
   return (
     <div>

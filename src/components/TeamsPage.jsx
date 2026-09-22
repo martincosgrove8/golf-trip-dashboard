@@ -1,16 +1,23 @@
+import { useState, useEffect } from "react";
 import { getScores, getPlayers, getTeams } from "../data/storage";
 import { competitionDays, rounds } from "../data/tripData";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
-} from "recharts";
 import { Trophy, Users, Shuffle, Flag } from "lucide-react";
 
 export default function TeamsPage() {
-  const teams = getTeams();
-  const rawScores = getScores(); // null = nothing entered yet
+  const [teams, setTeams] = useState(undefined);
+  const [rawScores, setRawScores] = useState(undefined);
+  const [players, setPlayers] = useState([]);
+
+  useEffect(() => {
+    getTeams().then(setTeams);
+    getScores().then(setRawScores);
+    getPlayers().then(setPlayers);
+  }, []);
+
   const scores = rawScores ?? [];
-  const scoresEntered = rawScores !== null;
-  const players = getPlayers();
+  const scoresEntered = rawScores !== null && rawScores !== undefined;
+
+  if (teams === undefined) return null; // loading
 
   if (!teams || teams.length === 0) {
     return (
@@ -38,20 +45,10 @@ export default function TeamsPage() {
 
   const leaderboard = teams
     .map((team) => {
-      const dayTotals = competitionDays.map((d) => ({
-        day: d,
-        pts: teamDayScore(team.players, d),
-      }));
-      const cumulative = dayTotals.reduce((a, d) => a + d.pts, 0);
-      return { ...team, dayTotals, cumulative };
+      const cumulative = competitionDays.reduce((a, d) => a + teamDayScore(team.players, d), 0);
+      return { ...team, cumulative };
     })
     .sort((a, b) => b.cumulative - a.cumulative);
-
-  const chartData = competitionDays.map((d) => {
-    const row = { day: rounds[d - 1]?.day ?? `Day ${d}` };
-    teams.forEach((t) => { row[t.id] = teamDayScore(t.players, d); });
-    return row;
-  });
 
   const winner = leaderboard[0];
 
@@ -115,19 +112,8 @@ export default function TeamsPage() {
                 ? <><div className="text-lg font-bold" style={{ color: team.color }}>{team.cumulative}</div><div className="text-xs text-slate-400">pts</div></>
                 : <div className="text-xs text-slate-400 italic">no scores yet</div>}
             </div>
-            {/* Per-round breakdown — only when scores entered */}
-            {scoresEntered && (
-              <div className="flex gap-2 pl-10 flex-wrap">
-                {team.dayTotals.map((d) => (
-                  <div key={d.day} className="bg-slate-50 rounded-lg px-2 py-1 text-xs">
-                    <span className="text-slate-400">{rounds[d.day - 1]?.day}: </span>
-                    <span className="font-semibold text-slate-700">{d.pts} pts</span>
-                  </div>
-                ))}
-              </div>
-            )}
             {/* Players */}
-            <div className="flex gap-1.5 pl-10 mt-2 flex-wrap">
+            <div className="flex gap-1.5 pl-10 mt-1 flex-wrap">
               {team.players.map((pid) => {
                 const p = players.find((pl) => pl.id === pid);
                 return (
@@ -144,32 +130,6 @@ export default function TeamsPage() {
           </div>
         ))}
       </div>
-
-      {/* Grouped bar chart — only when scores are in */}
-      {scoresEntered && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-            Points per Round
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 4, left: -10 }}>
-              <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
-                formatter={(v, name) => [`${v} pts`, teams.find((t) => t.id === name)?.name ?? name]}
-              />
-              <Legend
-                formatter={(value) => teams.find((t) => t.id === value)?.name ?? value}
-                wrapperStyle={{ fontSize: 11 }}
-              />
-              {teams.map((t) => (
-                <Bar key={t.id} dataKey={t.id} fill={t.color} radius={[3, 3, 0, 0]} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
     </div>
   );
 }

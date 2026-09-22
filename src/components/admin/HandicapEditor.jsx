@@ -1,23 +1,27 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getPlayers, setHandicap } from "../../data/storage";
 import { CheckCircle, Upload, AlertCircle } from "lucide-react";
 import * as XLSX from "xlsx";
 
 export default function HandicapEditor() {
-  const [players, setPlayers] = useState(() => getPlayers());
+  const [players, setPlayersState] = useState([]);
   const [saved, setSaved] = useState({});
-  const [importMsg, setImportMsg] = useState(null); // { type: "success"|"error", text }
+  const [importMsg, setImportMsg] = useState(null);
   const fileRef = useRef(null);
+
+  useEffect(() => {
+    getPlayers().then((p) => setPlayersState(p));
+  }, []);
 
   function handleChange(id, value) {
     const hcp = Math.min(54, Math.max(0, Number(value) || 0));
-    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, handicap: hcp } : p)));
+    setPlayersState((prev) => prev.map((p) => (p.id === id ? { ...p, handicap: hcp } : p)));
     setSaved((prev) => ({ ...prev, [id]: false }));
   }
 
-  function handleBlur(id, value) {
+  async function handleBlur(id, value) {
     const hcp = Math.min(54, Math.max(0, Number(value) || 0));
-    setHandicap(id, hcp);
+    await setHandicap(id, hcp);
     setSaved((prev) => ({ ...prev, [id]: true }));
   }
 
@@ -27,19 +31,14 @@ export default function HandicapEditor() {
     setImportMsg(null);
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const wb = XLSX.read(ev.target.result, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
-        // Accept columns named: Name / Player, Handicap / HCP / Hcp
-        const nameKey = Object.keys(rows[0] ?? {}).find((k) =>
-          /^(name|player)/i.test(k.trim())
-        );
-        const hcpKey = Object.keys(rows[0] ?? {}).find((k) =>
-          /^(handicap|hcp)/i.test(k.trim())
-        );
+        const nameKey = Object.keys(rows[0] ?? {}).find((k) => /^(name|player)/i.test(k.trim()));
+        const hcpKey  = Object.keys(rows[0] ?? {}).find((k) => /^(handicap|hcp)/i.test(k.trim()));
 
         if (!nameKey || !hcpKey) {
           setImportMsg({
@@ -50,28 +49,27 @@ export default function HandicapEditor() {
         }
 
         let matched = 0;
-        let unmatched = [];
+        const unmatched = [];
+        const currentPlayers = await getPlayers();
 
-        rows.forEach((row) => {
+        for (const row of rows) {
           const name = String(row[nameKey]).trim();
-          const hcp = Math.min(54, Math.max(0, Number(row[hcpKey]) || 0));
-          // Fuzzy match: last name or full name
-          const player = players.find(
+          const hcp  = Math.min(54, Math.max(0, Number(row[hcpKey]) || 0));
+          const player = currentPlayers.find(
             (p) =>
               p.name.toLowerCase() === name.toLowerCase() ||
               p.name.toLowerCase().includes(name.toLowerCase()) ||
               name.toLowerCase().includes(p.name.split(" ")[1]?.toLowerCase() ?? "__")
           );
           if (player) {
-            setHandicap(player.id, hcp);
+            await setHandicap(player.id, hcp);
             matched++;
           } else if (name) {
             unmatched.push(name);
           }
-        });
+        }
 
-        // Refresh local state
-        setPlayers(getPlayers());
+        getPlayers().then((p) => setPlayersState(p));
         setSaved({});
 
         const msg = `Imported ${matched} handicap${matched !== 1 ? "s" : ""}.${
@@ -81,7 +79,6 @@ export default function HandicapEditor() {
       } catch (err) {
         setImportMsg({ type: "error", text: `Failed to read file: ${err.message}` });
       } finally {
-        // Reset input so same file can be re-imported
         e.target.value = "";
       }
     };
@@ -104,13 +101,7 @@ export default function HandicapEditor() {
         >
           <Upload size={14} /> Choose File
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          className="hidden"
-          onChange={handleFile}
-        />
+        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFile} />
       </div>
 
       {importMsg && (
@@ -121,11 +112,7 @@ export default function HandicapEditor() {
               : "bg-red-50 border border-red-200 text-red-700"
           }`}
         >
-          {importMsg.type === "success" ? (
-            <CheckCircle size={16} className="mt-0.5 shrink-0" />
-          ) : (
-            <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          )}
+          {importMsg.type === "success" ? <CheckCircle size={16} className="mt-0.5 shrink-0" /> : <AlertCircle size={16} className="mt-0.5 shrink-0" />}
           {importMsg.text}
         </div>
       )}
@@ -143,10 +130,7 @@ export default function HandicapEditor() {
           </thead>
           <tbody>
             {players.filter((p) => p.id <= 15).map((p, i) => (
-              <tr
-                key={p.id}
-                className={`border-b border-slate-50 last:border-0 ${i % 2 === 0 ? "" : "bg-slate-50/50"}`}
-              >
+              <tr key={p.id} className={`border-b border-slate-50 last:border-0 ${i % 2 === 0 ? "" : "bg-slate-50/50"}`}>
                 <td className="px-4 py-2 font-medium text-slate-700">{p.name}</td>
                 <td className="px-4 py-2 text-center">
                   <input

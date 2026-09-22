@@ -1,15 +1,22 @@
+import { useState, useEffect } from "react";
 import TripHeader from "./TripHeader";
 import { getPlayers, getScores, getTeams } from "../data/storage";
 import { rounds, competitionDays } from "../data/tripData";
 import { Flag, Trophy } from "lucide-react";
 
 export default function HomePage() {
-  const players = getPlayers();
-  const rawScores = getScores(); // null = nothing entered yet
-  const teams = getTeams();
+  const [players, setPlayers] = useState([]);
+  const [rawScores, setRawScores] = useState(undefined); // undefined = loading
+  const [teams, setTeams] = useState(undefined);
+
+  useEffect(() => {
+    getPlayers().then(setPlayers);
+    getScores().then(setRawScores);
+    getTeams().then(setTeams);
+  }, []);
 
   const scores = rawScores ?? [];
-  const scoresEntered = rawScores !== null;
+  const scoresEntered = rawScores !== null && rawScores !== undefined;
 
   function teamCumulative(team) {
     return competitionDays.reduce((sum, d) => {
@@ -46,7 +53,7 @@ export default function HomePage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-          {leaderboard.map((team, rank) => (
+          {(leaderboard ?? []).map((team, rank) => (
             <div
               key={team.id}
               className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
