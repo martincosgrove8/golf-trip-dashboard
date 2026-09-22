@@ -112,11 +112,6 @@ export default function ScoreboardPage() {
                       {cbLabel}
                     </span>
                   )}
-                  {isTied && !cbLabel && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 border border-slate-200">
-                      tied
-                    </span>
-                  )}
                 </div>
               );
             })}
