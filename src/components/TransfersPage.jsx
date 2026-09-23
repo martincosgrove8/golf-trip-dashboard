@@ -64,22 +64,31 @@ function TransferCard({ transfer: t, accent }) {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex gap-4 items-start">
-      <div className={`rounded-lg p-2 mt-0.5 ${dotStyle}`}>
+      <div className={`rounded-lg p-2 mt-0.5 shrink-0 ${dotStyle}`}>
         {accent === "sky" ? <Plane size={16} /> : <Bus size={16} />}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        {/* Date + time */}
+        <div className="flex items-center gap-2 mb-1.5">
+          {accent === "sky" && (
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t.day}</span>
+          )}
           <span className="flex items-center gap-1 text-sm font-semibold text-slate-700">
             <Clock size={12} className="text-slate-400" />
             {t.time}
           </span>
-          <span className="text-slate-300">·</span>
-          <span className="text-sm text-slate-700 truncate">{t.from}</span>
-          <ArrowRight size={12} className="text-slate-400 shrink-0" />
-          <span className="text-sm font-semibold text-slate-700 truncate">{t.to}</span>
         </div>
+        {/* Route */}
+        <div className="flex flex-col gap-1">
+          <div className="text-sm text-slate-700">{t.from}</div>
+          <div className="flex items-center gap-1">
+            <ArrowRight size={12} className="text-slate-400 shrink-0" />
+            <div className="text-sm font-semibold text-slate-700">{t.to}</div>
+          </div>
+        </div>
+        {/* Notes */}
         {t.notes && (
-          <div className="flex items-start gap-1 mt-1.5 text-xs text-slate-500">
+          <div className="flex items-start gap-1 mt-2 text-xs text-slate-500 leading-relaxed">
             <Info size={11} className="mt-0.5 shrink-0" />
             <span>{t.notes}</span>
           </div>
