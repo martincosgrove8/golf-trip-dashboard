@@ -1,6 +1,7 @@
 import { transfers } from "../data/tripData";
 import { Bus, Plane, Clock, ArrowRight, Info } from "lucide-react";
 import PageHeader from "./PageHeader";
+import { fmtTime } from "../utils";
 
 const airportTransfers = transfers.filter((t) => t.type === "airport");
 const golfTransfers = transfers.filter((t) => t.type === "golf");
@@ -77,7 +78,7 @@ function TransferCard({ transfer: t, accent }) {
           )}
           <span className="flex items-center gap-1 text-sm font-semibold text-slate-700">
             <Clock size={12} className="text-slate-400" />
-            {t.time}
+            {fmtTime(t.time)}
           </span>
         </div>
         {/* Route */}

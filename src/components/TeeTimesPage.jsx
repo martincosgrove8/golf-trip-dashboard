@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { getRounds, getReleasedFlags, getTeams, getPlayers } from "../data/storage";
 import { Clock, Flag, Users, Lock } from "lucide-react";
 import PageHeader from "./PageHeader";
+import { fmtTime } from "../utils";
 
 export default function TeeTimesPage() {
   const [rounds, setRounds] = useState([]);
@@ -103,7 +104,7 @@ export default function TeeTimesPage() {
                   <div key={gi} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="bg-slate-700 px-4 py-2 flex items-center gap-2 text-white text-sm font-semibold">
                       <Clock size={14} />
-                      {g.time}
+                      {fmtTime(g.time)}
                     </div>
                     <div className="p-4">
                       <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2">

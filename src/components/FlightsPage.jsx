@@ -1,6 +1,7 @@
 import { flights } from "../data/tripData";
 import { Plane, ArrowRight } from "lucide-react";
 import PageHeader from "./PageHeader";
+import { fmtTime } from "../utils";
 
 export default function FlightsPage() {
   return (
@@ -33,7 +34,7 @@ function FlightCard({ flight: f }) {
       <div className="p-5">
         <div className="flex items-center gap-3">
           <div className="text-center">
-            <div className="text-2xl font-bold text-slate-800">{f.departure}</div>
+            <div className="text-2xl font-bold text-slate-800">{fmtTime(f.departure)}</div>
             <div className="text-xs text-slate-500">{f.from}</div>
           </div>
           <div className="flex-1 flex flex-col items-center gap-0.5">
@@ -44,7 +45,7 @@ function FlightCard({ flight: f }) {
             </div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-slate-800">{f.arrival}</div>
+            <div className="text-2xl font-bold text-slate-800">{fmtTime(f.arrival)}</div>
             <div className="text-xs text-slate-500">{f.to}</div>
           </div>
         </div>
