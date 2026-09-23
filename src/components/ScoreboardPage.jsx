@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { getScores, getPlayers } from "../data/storage";
+import { getScores, getPlayers, getTeams } from "../data/storage";
+import { ClipboardList, Trophy } from "lucide-react";
 import { rounds } from "../data/tripData";
-import { Trophy, ClipboardList } from "lucide-react";
+import PageHeader from "./PageHeader";
 
-// Lower index = better countback
 const COUNTBACK_RANK = { B9: 0, L6: 1, L3: 2, L1: 3, F9: 4 };
 const COUNTBACK_LABEL = { B9: "B.9", L6: "L.6", L3: "L.3", L1: "L.1", F9: "F.9" };
 
@@ -17,7 +17,6 @@ function medal(rank) {
 function sortWithCountback(scores) {
   return [...scores].sort((a, b) => {
     if (b.total !== a.total) return b.total - a.total;
-    // Tied — sort by countback rank (lower = better); no countback goes last
     const ra = a.countback ? (COUNTBACK_RANK[a.countback] ?? 99) : 99;
     const rb = b.countback ? (COUNTBACK_RANK[b.countback] ?? 99) : 99;
     return ra - rb;
@@ -29,14 +28,21 @@ export default function ScoreboardPage() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [allScores, setAllScores] = useState(undefined);
   const [players, setPlayers] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    getScores().then(setAllScores);
-    getPlayers().then(setPlayers);
+    Promise.all([getScores(), getPlayers(), getTeams()]).then(([s, p, t]) => {
+      setAllScores(s);
+      setPlayers(p);
+      setTeams(t ?? []);
+      setVisible(true);
+    });
   }, []);
 
   useEffect(() => {
-    getScores().then(setAllScores);
+    setVisible(false);
+    getScores().then((s) => { setAllScores(s); setVisible(true); });
   }, [day]);
 
   const scores = allScores ?? [];
@@ -45,13 +51,16 @@ export default function ScoreboardPage() {
   const sorted = sortWithCountback(dayScores);
   const round = rounds[day - 1];
 
-  // Detect which totals have ties
   const totalCounts = {};
   sorted.forEach((s) => { totalCounts[s.total] = (totalCounts[s.total] ?? 0) + 1; });
 
+  function teamFor(playerId) {
+    return teams.find((t) => t.players.includes(playerId));
+  }
+
   return (
     <div>
-      <h2 className="text-xl font-bold text-slate-800 mb-4">Scoreboard</h2>
+      <PageHeader eyebrow="Leaderboard" title="Scoreboard" subtitle="Individual Stableford results by round" />
 
       {/* Day selector */}
       <div className="flex gap-2 flex-wrap mb-4">
@@ -83,40 +92,47 @@ export default function ScoreboardPage() {
           </div>
         </div>
       ) : (
-        <>
-          <h3 className="font-semibold text-slate-700 mb-2 flex items-center gap-2">
-            <Trophy size={15} /> Leaderboard
-          </h3>
-          <div className="space-y-2 mb-5">
-            {sorted.map((s, rank) => {
-              const player = players.find((p) => p.id === s.playerId);
-              const m = medal(rank);
-              const isTied = totalCounts[s.total] > 1;
-              const cbLabel = s.countback ? COUNTBACK_LABEL[s.countback] : null;
+        <div
+          className="space-y-2 transition-opacity duration-300"
+          style={{ opacity: visible ? 1 : 0 }}
+        >
+          {sorted.map((s, rank) => {
+            const player = players.find((p) => p.id === s.playerId);
+            const m = medal(rank);
+            const isTied = totalCounts[s.total] > 1;
+            const cbLabel = s.countback ? COUNTBACK_LABEL[s.countback] : null;
+            const team = teamFor(s.playerId);
 
-              return (
-                <div
-                  key={s.playerId}
-                  className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-3"
-                >
-                  <div className="w-7 text-center">
-                    {m ? <span className="text-lg">{m}</span> : <span className="text-xs font-bold text-slate-400">#{rank + 1}</span>}
-                  </div>
-                  <div className="flex-1 font-semibold text-slate-800">{player?.name}</div>
-                  <div className="text-xs text-slate-400 font-medium">Hcp {player?.handicap}</div>
-                  <div className="text-base font-bold text-emerald-700">{s.total}</div>
-                  <div className="text-xs text-slate-400">pts</div>
-                  {/* Countback badge — show when tied */}
-                  {isTied && cbLabel && (
-                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
-                      {cbLabel}
-                    </span>
+            return (
+              <div
+                key={s.playerId}
+                className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center gap-3"
+                style={{ borderLeftWidth: 3, borderLeftColor: team?.color ?? "#e2e8f0" }}
+              >
+                <div className="w-7 text-center shrink-0">
+                  {m ? <span className="text-lg">{m}</span> : <span className="text-xs font-bold text-slate-400">#{rank + 1}</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-slate-800 text-sm">{player?.name}</div>
+                  {team && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: team.color }} />
+                      <span className="text-xs text-slate-400">{team.name}</span>
+                    </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        </>
+                <div className="text-xs text-slate-400 font-medium shrink-0">Hcp {player?.handicap}</div>
+                <div className="text-base font-bold text-emerald-700 shrink-0">{s.total}</div>
+                <div className="text-xs text-slate-400 shrink-0">pts</div>
+                {isTied && cbLabel && (
+                  <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
+                    {cbLabel}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

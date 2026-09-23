@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { getScores, getPlayers, getTeams } from "../data/storage";
 import { competitionDays, rounds } from "../data/tripData";
 import { Trophy, Users, Shuffle, Flag } from "lucide-react";
+import PageHeader from "./PageHeader";
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState(undefined);
@@ -22,9 +23,7 @@ export default function TeamsPage() {
   if (!teams || teams.length === 0) {
     return (
       <div>
-        <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center gap-2">
-          <Trophy size={18} /> Team Competition
-        </h2>
+        <PageHeader eyebrow="Competition" title="Team Competition" />
         <div className="mt-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl px-6 py-12 text-center">
           <Users size={36} className="text-slate-300 mx-auto mb-3" />
           <div className="text-slate-500 font-semibold mb-1">No teams set up yet</div>
@@ -54,12 +53,7 @@ export default function TeamsPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center gap-2">
-        <Trophy size={18} /> Team Competition
-      </h2>
-      <p className="text-xs text-slate-500 mb-4">
-        Cumulative Stableford — Dom Pedro Laguna, Vale do Lobo Royal &amp; Quinta do Vale
-      </p>
+      <PageHeader eyebrow="Competition" title="Team Competition" subtitle="Cumulative Stableford — Dom Pedro Laguna, Vale do Lobo Royal & Quinta do Vale" />
 
       {/* Format info banner */}
       <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 mb-5 space-y-2">

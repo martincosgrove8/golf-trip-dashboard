@@ -23,7 +23,7 @@ const linkClass = ({ isActive }) =>
 
 const bottomClass = ({ isActive }) =>
   `flex flex-col items-center justify-center gap-0.5 py-1.5 flex-1 text-xs font-medium transition-all rounded-lg ${
-    isActive ? "text-emerald-600" : "text-slate-400"
+    isActive ? "text-emerald-600" : "text-slate-400 hover:text-slate-600"
   }`;
 
 export default function Layout({ children }) {
@@ -60,9 +60,12 @@ export default function Layout({ children }) {
         {nav.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} end={to === "/"} className={bottomClass} title={label}>
             {({ isActive }) => (
-              <span className={`p-1.5 rounded-lg transition-all ${isActive ? "bg-emerald-50" : ""}`}>
-                <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
-              </span>
+              <>
+                <span className={`p-1.5 rounded-lg transition-all ${isActive ? "bg-emerald-50" : ""}`}>
+                  <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
+                </span>
+                <span className={`w-1 h-1 rounded-full transition-all ${isActive ? "bg-emerald-500" : "bg-transparent"}`} />
+              </>
             )}
           </NavLink>
         ))}

@@ -1,5 +1,6 @@
 import { transfers } from "../data/tripData";
 import { Bus, Plane, Clock, ArrowRight, Info } from "lucide-react";
+import PageHeader from "./PageHeader";
 
 const airportTransfers = transfers.filter((t) => t.type === "airport");
 const golfTransfers = transfers.filter((t) => t.type === "golf");
@@ -9,6 +10,7 @@ const golfDays = [...new Set(golfTransfers.map((t) => t.day))];
 export default function TransfersPage() {
   return (
     <div className="space-y-8">
+      <PageHeader eyebrow="Getting around" title="Transfers" subtitle="Airport and golf course transport" />
       {/* ── Airport Transfers ───────────────────────────────── */}
       <section>
         <SectionHeader icon={<Plane size={15} />} label="Airport Transfers" color="sky" />

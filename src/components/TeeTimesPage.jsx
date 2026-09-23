@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getRounds, getReleasedFlags, getTeams, getPlayers } from "../data/storage";
 import { Clock, Flag, Users, Lock } from "lucide-react";
+import PageHeader from "./PageHeader";
 
 export default function TeeTimesPage() {
   const [rounds, setRounds] = useState([]);
@@ -47,7 +48,7 @@ export default function TeeTimesPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-slate-800 mb-4">Tee Times</h2>
+      <PageHeader eyebrow="Schedule" title="Tee Times" subtitle="Starting times and playing groups by round" />
 
       {!anyReleased ? (
         <div className="mt-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl px-6 py-12 text-center">

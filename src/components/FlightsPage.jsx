@@ -1,10 +1,11 @@
 import { flights } from "../data/tripData";
 import { Plane, ArrowRight } from "lucide-react";
+import PageHeader from "./PageHeader";
 
 export default function FlightsPage() {
   return (
     <div>
-      <h2 className="text-xl font-bold text-slate-800 mb-4">Flights</h2>
+      <PageHeader eyebrow="Travel" title="Flights" subtitle="Knock ↔ Faro · Ryanair" />
       <div className="space-y-4">
         {flights.map((f) => (
           <FlightCard key={f.id} flight={f} />
