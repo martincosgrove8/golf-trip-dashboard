@@ -87,7 +87,7 @@ export default function HomePage() {
           <div key={i} className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center justify-between">
             <div>
               <div className={`text-xs font-bold ${i === 0 ? "text-slate-400" : "text-emerald-600"}`}>
-                {r.dayLabel}{i === 0 ? " (not in competition)" : ""}
+                {r.dayLabel}{i === 0 ? " — not in team competition" : ""}
               </div>
               <div className="text-sm font-medium text-slate-700">{r.day}</div>
             </div>
