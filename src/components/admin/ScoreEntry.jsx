@@ -30,7 +30,7 @@ export default function ScoreEntry() {
 
   useEffect(() => {
     getRounds().then(setRounds);
-    getPlayers().then((p) => setPlayers(p.filter((pl) => pl.id <= 15)));
+    getPlayers().then((p) => setPlayers(p.filter((pl) => pl.id <= 17)));
   }, []);
 
   useEffect(() => {
@@ -76,9 +76,12 @@ export default function ScoreEntry() {
 
   const round = rounds[day - 1];
 
+  // Tom Gruddy (16) and Guest (17) only play R2 (day 2)
+  const activePlayers = players.filter((p) => p.id <= 15 || day === 2);
+
   const displayPlayers = sortByScore
-    ? [...players].sort((a, b) => (Number(totals[b.id]) || 0) - (Number(totals[a.id]) || 0))
-    : players;
+    ? [...activePlayers].sort((a, b) => (Number(totals[b.id]) || 0) - (Number(totals[a.id]) || 0))
+    : activePlayers;
 
   return (
     <div>

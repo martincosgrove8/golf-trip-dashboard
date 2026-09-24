@@ -319,22 +319,32 @@ export default function HandicapEditor() {
             </tr>
           </thead>
           <tbody>
-            {players.filter((p) => p.id <= 15).map((p, i) => (
+            {players.filter((p) => p.id <= 17).map((p, i) => (
               <tr key={p.id} className={`border-b border-slate-50 last:border-0 ${i % 2 === 0 ? "" : "bg-slate-50/50"}`}>
-                <td className="px-4 py-2 font-medium text-slate-700">{p.name}</td>
-                {ROUNDS.map((r) => (
-                  <td key={r.key} className="px-2 py-2 text-center">
-                    <input
-                      type="number"
-                      min={0}
-                      max={54}
-                      value={hcpVal(p, r.key)}
-                      onChange={(e) => handleChange(p.id, r.key, e.target.value)}
-                      onBlur={() => handleBlur(p.id)}
-                      className="w-14 text-center border border-slate-300 rounded-lg px-1 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                    />
-                  </td>
-                ))}
+                <td className="px-4 py-2 font-medium text-slate-700">
+                  {p.name}
+                  {p.id >= 16 && <span className="ml-1.5 text-xs text-slate-400 font-normal">(R2 only)</span>}
+                </td>
+                {ROUNDS.map((r) => {
+                  const r2Only = p.id >= 16 && r.key !== "r2";
+                  return (
+                    <td key={r.key} className="px-2 py-2 text-center">
+                      {r2Only ? (
+                        <span className="text-xs text-slate-300">—</span>
+                      ) : (
+                        <input
+                          type="number"
+                          min={0}
+                          max={54}
+                          value={hcpVal(p, r.key)}
+                          onChange={(e) => handleChange(p.id, r.key, e.target.value)}
+                          onBlur={() => handleBlur(p.id)}
+                          className="w-14 text-center border border-slate-300 rounded-lg px-1 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        />
+                      )}
+                    </td>
+                  );
+                })}
                 <td className="pr-3 text-center">
                   {saved[p.id] && <CheckCircle size={14} className="text-emerald-500 inline" />}
                 </td>
