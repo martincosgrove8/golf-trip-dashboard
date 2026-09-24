@@ -10,15 +10,98 @@ const ROUNDS = [
   { key: "r4", label: "R4 — Quinta do Vale" },
 ];
 
-// Attempt to map a column header to a round key
-function detectRoundKey(col) {
-  const c = col.toLowerCase().trim();
-  if (/r1|round.?1|faldo|amendoeira/.test(c)) return "r1";
-  if (/r2|round.?2|laguna|dom.pedro/.test(c)) return "r2";
-  if (/r3|round.?3|vale.do.lobo|lobo/.test(c)) return "r3";
-  if (/r4|round.?4|quinta/.test(c)) return "r4";
-  if (/^(handicap|hcp)$/.test(c)) return "r1"; // single-column fallback
-  return null;
+// Detect which column index maps to each round given the two header rows.
+// Supports:
+//   1. The exact "Handicaps Autumn Golf Getaway 2026.xlsx" layout (unnamed cols,
+//      row 0 = R1/R2/R3/R4 labels, row 1 = White/Yellow/Blue tee sub-headers).
+//      Tee selections: R1=Yellow, R2=White, R3=White, R4=White.
+//   2. Simple named columns: Name, R1, R2, R3, R4 (or Round 1–4, course names).
+function parseHandicapSheet(ws) {
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+  // ── Strategy 1: detect the known multi-header layout ──────────────────────
+  // Row 0 contains "R1", "R2", "R3", "R4" (possibly with extra text)
+  // Row 1 contains tee colour labels "White"/"Yellow"/"Blue"
+  const row0 = (raw[0] ?? []).map((v) => String(v).trim().toLowerCase());
+  const row1 = (raw[1] ?? []).map((v) => String(v).trim().toLowerCase());
+
+  const hasMultiHeader =
+    row0.some((v) => /^r1/.test(v)) &&
+    row1.some((v) => /white|yellow|blue/.test(v));
+
+  if (hasMultiHeader) {
+    // Find name column (row0 cell = "name" or similar)
+    const nameCol = row0.findIndex((v) => /name|player/.test(v));
+
+    // For each round, find the column index matching the desired tee colour
+    function findTeeCol(roundLabel, teeColour) {
+      // Find where the round label starts in row0
+      const roundStart = row0.findIndex((v) => v.startsWith(roundLabel));
+      if (roundStart < 0) return -1;
+      // From roundStart onwards, find first matching tee colour in row1
+      for (let i = roundStart; i < row1.length; i++) {
+        if (row1[i] === teeColour) return i;
+        // Stop when we hit the next round label
+        if (i > roundStart && /^r\d/.test(row0[i])) break;
+      }
+      return -1;
+    }
+
+    const colMap = {
+      r1: findTeeCol("r1", "yellow"),
+      r2: findTeeCol("r2", "white"),
+      r3: findTeeCol("r3", "white"),
+      r4: findTeeCol("r4", "white"),
+    };
+
+    // Data rows start at index 2
+    const players = [];
+    for (let ri = 2; ri < raw.length; ri++) {
+      const row = raw[ri];
+      const name = String(row[nameCol] ?? "").trim();
+      if (!name) continue;
+      players.push({
+        name,
+        r1: Number(row[colMap.r1]) || 0,
+        r2: Number(row[colMap.r2]) || 0,
+        r3: Number(row[colMap.r3]) || 0,
+        r4: Number(row[colMap.r4]) || 0,
+      });
+    }
+    return { players, strategy: "multi-header" };
+  }
+
+  // ── Strategy 2: simple named columns ──────────────────────────────────────
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+  if (!rows.length) return { players: [], strategy: "empty" };
+
+  const cols = Object.keys(rows[0]);
+  const nameKey = cols.find((k) => /^(name|player)/i.test(k.trim()));
+  if (!nameKey) return { players: [], strategy: "no-name-col", cols };
+
+  function roundKey(col) {
+    const c = col.toLowerCase().trim();
+    if (/r1|round.?1|faldo|amendoeira/.test(c)) return "r1";
+    if (/r2|round.?2|laguna|dom.pedro/.test(c)) return "r2";
+    if (/r3|round.?3|vale.do.lobo|lobo/.test(c)) return "r3";
+    if (/r4|round.?4|quinta/.test(c)) return "r4";
+    if (/^(handicap|hcp)$/.test(c)) return "r1";
+    return null;
+  }
+
+  const roundCols = {};
+  cols.forEach((k) => { const rk = roundKey(k); if (rk) roundCols[k] = rk; });
+
+  const players = rows.map((row) => {
+    const name = String(row[nameKey]).trim();
+    const entry = { name, r1: 0, r2: 0, r3: 0, r4: 0 };
+    Object.entries(roundCols).forEach(([col, rk]) => {
+      entry[rk] = Math.min(54, Math.max(0, Number(row[col]) || 0));
+    });
+    return entry;
+  }).filter((p) => p.name);
+
+  return { players, strategy: "simple", roundCols };
 }
 
 export default function HandicapEditor() {
@@ -66,61 +149,48 @@ export default function HandicapEditor() {
       try {
         const wb = XLSX.read(ev.target.result, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
-        if (!rows.length) { setImportMsg({ type: "error", text: "Empty spreadsheet." }); return; }
+        const { players: parsed, strategy, cols } = parseHandicapSheet(ws);
 
-        const cols = Object.keys(rows[0]);
-        const nameKey = cols.find((k) => /^(name|player)/i.test(k.trim()));
-        if (!nameKey) {
-          setImportMsg({ type: "error", text: `No "Name" column found. Columns: ${cols.join(", ")}` });
+        if (strategy === "empty") {
+          setImportMsg({ type: "error", text: "Spreadsheet appears to be empty." });
+          return;
+        }
+        if (strategy === "no-name-col") {
+          setImportMsg({ type: "error", text: `No "Name" column found. Columns: ${(cols ?? []).join(", ")}` });
+          return;
+        }
+        if (!parsed.length) {
+          setImportMsg({ type: "error", text: "No player rows found in the spreadsheet." });
           return;
         }
 
-        // Map each column to a round key
-        const roundCols = {};
-        cols.forEach((k) => {
-          if (k === nameKey) return;
-          const rk = detectRoundKey(k);
-          if (rk) roundCols[k] = rk;
-        });
-
-        if (!Object.keys(roundCols).length) {
-          setImportMsg({ type: "error", text: `No round/handicap columns found. Expected R1/R2/R3/R4 or Round 1–4. Columns: ${cols.join(", ")}` });
-          return;
-        }
-
+        const currentPlayers = await getPlayers();
         let matched = 0;
         const unmatched = [];
-        const currentPlayers = await getPlayers();
 
-        for (const row of rows) {
-          const name = String(row[nameKey]).trim();
+        for (const row of parsed) {
           const player = currentPlayers.find(
             (p) =>
-              p.name.toLowerCase() === name.toLowerCase() ||
-              p.name.toLowerCase().includes(name.toLowerCase()) ||
-              name.toLowerCase().includes(p.name.split(" ")[1]?.toLowerCase() ?? "__")
+              p.name.toLowerCase() === row.name.toLowerCase() ||
+              p.name.toLowerCase().includes(row.name.toLowerCase()) ||
+              row.name.toLowerCase().includes(p.name.split(" ")[1]?.toLowerCase() ?? "__")
           );
-          if (!player) { if (name) unmatched.push(name); continue; }
+          if (!player) { if (row.name) unmatched.push(row.name); continue; }
 
           const existing = player.handicaps ?? { r1: player.handicap ?? 0, r2: 0, r3: 0, r4: 0 };
-          const updated = { ...existing };
-          Object.entries(roundCols).forEach(([col, rk]) => {
-            updated[rk] = Math.min(54, Math.max(0, Number(row[col]) || 0));
+          await setHandicaps(player.id, {
+            r1: row.r1 || existing.r1,
+            r2: row.r2 || existing.r2,
+            r3: row.r3 || existing.r3,
+            r4: row.r4 || existing.r4,
           });
-          await setHandicaps(player.id, updated);
           matched++;
         }
 
         getPlayers().then((p) => { setPlayersState(p); setSaved({}); });
-
-        const roundsImported = Object.values(roundCols).filter((v, i, a) => a.indexOf(v) === i).map((rk) => {
-          const r = ROUNDS.find((x) => x.key === rk);
-          return r ? r.label : rk;
-        });
         setImportMsg({
           type: matched > 0 ? "success" : "error",
-          text: `Imported ${matched} player${matched !== 1 ? "s" : ""} for ${roundsImported.join(", ")}.${
+          text: `Imported handicaps for ${matched} player${matched !== 1 ? "s" : ""}.${
             unmatched.length ? ` Unmatched: ${unmatched.join(", ")}` : ""
           }`,
         });
@@ -141,10 +211,7 @@ export default function HandicapEditor() {
           <div className="flex-1">
             <div className="text-sm font-semibold text-slate-700">Import from Excel</div>
             <div className="text-xs text-slate-500 mt-0.5">
-              Include a <span className="font-medium">Name</span> column plus handicap columns named{" "}
-              <span className="font-medium">R1</span>, <span className="font-medium">R2</span>,{" "}
-              <span className="font-medium">R3</span>, <span className="font-medium">R4</span>{" "}
-              (or Round 1–4, Faldo, Laguna etc.). Missing rounds stay unchanged.
+              Upload your handicap spreadsheet. Tee selections used: R1 Yellow, R2–R4 White.
             </div>
           </div>
           <button
