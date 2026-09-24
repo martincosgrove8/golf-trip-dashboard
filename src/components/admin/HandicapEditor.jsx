@@ -19,22 +19,28 @@ const TEE_COLOURS = {
 // Parse the known multi-header Excel layout and return all tee values
 // Returns: { players: [{ name, r1: { white, yellow, blue }, r2: {...}, ... }] }
 function parseHandicapSheet(ws) {
+  // Always read as raw 2D array to avoid header-detection issues
   const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-  const row0 = (raw[0] ?? []).map((v) => String(v).trim().toLowerCase());
+  if (!raw.length) return { players: [], strategy: "empty" };
+
+  const row0 = raw[0].map((v) => String(v).trim().toLowerCase());
   const row1 = (raw[1] ?? []).map((v) => String(v).trim().toLowerCase());
 
-  const hasMultiHeader =
-    row0.some((v) => /^r1/.test(v)) &&
-    row1.some((v) => /white|yellow|blue/.test(v));
+  // Detect the known multi-header layout:
+  // row0 has a name-like cell and at least one R1/R2/R3/R4 label
+  // row1 has tee colour labels
+  const hasRoundLabels = row0.some((v) => /r[1-4]/.test(v));
+  const hasTeeLabels   = row1.some((v) => /white|yellow|blue/.test(v));
 
-  if (hasMultiHeader) {
+  if (hasRoundLabels && hasTeeLabels) {
     const nameCol = row0.findIndex((v) => /name|player/.test(v));
 
-    // Build a map: { r1: { white: colIdx, yellow: colIdx, blue: colIdx }, ... }
+    // Build map: { r1: { white: colIdx, yellow: colIdx, blue: colIdx }, r2: … }
     const roundMap = {};
     let currentRound = null;
     for (let i = 0; i < row0.length; i++) {
-      if (/^r\d/.test(row0[i])) currentRound = row0[i].match(/^r\d/)[0];
+      const m = row0[i].match(/r([1-4])/);
+      if (m) currentRound = `r${m[1]}`;
       if (!currentRound) continue;
       if (!roundMap[currentRound]) roundMap[currentRound] = {};
       const tee = row1[i];
@@ -46,7 +52,7 @@ function parseHandicapSheet(ws) {
     const players = [];
     for (let ri = 2; ri < raw.length; ri++) {
       const row = raw[ri];
-      const name = String(row[nameCol] ?? "").trim();
+      const name = nameCol >= 0 ? String(row[nameCol] ?? "").trim() : String(row[0] ?? "").trim();
       if (!name) continue;
       const entry = { name };
       for (const [rk, teeMap] of Object.entries(roundMap)) {
@@ -60,32 +66,36 @@ function parseHandicapSheet(ws) {
     return { players, strategy: "multi-header" };
   }
 
-  // Simple fallback: named columns
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
-  if (!rows.length) return { players: [], strategy: "empty" };
-  const cols = Object.keys(rows[0]);
-  const nameKey = cols.find((k) => /^(name|player)/i.test(k.trim()));
-  if (!nameKey) return { players: [], strategy: "no-name-col", cols };
+  // Simple fallback: first row is a proper header row
+  // Find name col and round cols by index
+  const nameCol = row0.findIndex((v) => /name|player/.test(v));
+  if (nameCol < 0) return { players: [], strategy: "no-name-col", cols: row0 };
 
-  function roundKey(col) {
-    const c = col.toLowerCase().trim();
-    if (/r1|round.?1|faldo/.test(c)) return "r1";
-    if (/r2|round.?2|laguna/.test(c)) return "r2";
-    if (/r3|round.?3|lobo/.test(c)) return "r3";
-    if (/r4|round.?4|quinta/.test(c)) return "r4";
-    if (/^(handicap|hcp)$/.test(c)) return "r1";
+  // Try to detect round columns from row0 labels
+  function detectRound(v) {
+    if (/r1|round.?1|faldo/.test(v)) return "r1";
+    if (/r2|round.?2|laguna/.test(v)) return "r2";
+    if (/r3|round.?3|lobo/.test(v)) return "r3";
+    if (/r4|round.?4|quinta/.test(v)) return "r4";
+    if (/handicap|hcp/.test(v)) return "r1";
     return null;
   }
 
-  const players = rows.map((row) => {
-    const name = String(row[nameKey]).trim();
+  const roundCols = {};
+  row0.forEach((v, i) => {
+    const rk = detectRound(v);
+    if (rk && !roundCols[rk]) roundCols[rk] = i;
+  });
+
+  const players = raw.slice(1).map((row) => {
+    const name = String(row[nameCol] ?? "").trim();
+    if (!name) return null;
     const entry = { name };
-    cols.forEach((k) => {
-      const rk = roundKey(k);
-      if (rk) { entry[rk] = { white: Number(row[k]) || 0 }; }
-    });
+    for (const [rk, ci] of Object.entries(roundCols)) {
+      entry[rk] = { white: Number(row[ci]) || 0 };
+    }
     return entry;
-  }).filter((p) => p.name);
+  }).filter(Boolean);
 
   return { players, strategy: "simple" };
 }
@@ -158,7 +168,7 @@ export default function HandicapEditor() {
         const { players: parsed, strategy, cols } = parseHandicapSheet(ws);
 
         if (strategy === "empty") { setImportMsg({ type: "error", text: "Spreadsheet appears to be empty." }); return; }
-        if (strategy === "no-name-col") { setImportMsg({ type: "error", text: `No "Name" column found. Columns: ${(cols ?? []).join(", ")}` }); return; }
+        if (strategy === "no-name-col") { setImportMsg({ type: "error", text: `No "Name" column found in row 1. Values found: ${(cols ?? []).join(", ")}` }); return; }
         if (!parsed.length) { setImportMsg({ type: "error", text: "No player rows found." }); return; }
 
         const currentPlayers = await getPlayers();
