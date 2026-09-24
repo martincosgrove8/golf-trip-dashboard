@@ -125,7 +125,65 @@ export async function setHandicaps(playerId, handicaps) {
 
 export async function resetHandicaps() {
   localStorage.removeItem("golf_players");
+  localStorage.removeItem("golf_tees");
+  localStorage.removeItem("golf_handicap_raw");
   await dbDelete("golf_players");
+  await dbDelete("golf_tees");
+  await dbDelete("golf_handicap_raw");
+}
+
+// ─── Tee selections (per round) ───────────────────────────────────────────────
+// Stored as { r1: "yellow", r2: "white", r3: "white", r4: "white" }
+
+export const TEE_OPTIONS = {
+  r1: ["white", "yellow", "blue"],
+  r2: ["white", "yellow", "blue"],
+  r3: ["white", "yellow"],
+  r4: ["white", "yellow", "blue"],
+};
+
+export const DEFAULT_TEES = { r1: "yellow", r2: "white", r3: "white", r4: "white" };
+
+export async function getTees() {
+  return (await getRemote("golf_tees")) ?? DEFAULT_TEES;
+}
+
+export async function setTees(tees) {
+  save("golf_tees", tees);
+  await dbSet("golf_tees", tees);
+}
+
+// ─── Raw handicap data (all tees, stored at import time) ─────────────────────
+// Shape: { [playerId]: { r1: { white: N, yellow: N, blue: N }, r2: {...}, ... } }
+
+export async function getRawHandicaps() {
+  return (await getRemote("golf_handicap_raw")) ?? null;
+}
+
+export async function setRawHandicaps(raw) {
+  save("golf_handicap_raw", raw);
+  await dbSet("golf_handicap_raw", raw);
+}
+
+// Recompute and save player handicaps based on current tee selections + raw data
+export async function applyTees(tees) {
+  const raw = await getRawHandicaps();
+  if (!raw) return;
+  const overrides = (await getRemote("golf_players")) ?? [];
+  for (const [playerIdStr, rounds] of Object.entries(raw)) {
+    const playerId = Number(playerIdStr);
+    const handicaps = {
+      r1: rounds.r1?.[tees.r1] ?? 0,
+      r2: rounds.r2?.[tees.r2] ?? 0,
+      r3: rounds.r3?.[tees.r3] ?? 0,
+      r4: rounds.r4?.[tees.r4] ?? 0,
+    };
+    const idx = overrides.findIndex((x) => x.id === playerId);
+    const entry = { id: playerId, handicap: handicaps.r1, handicaps };
+    if (idx >= 0) overrides[idx] = entry; else overrides.push(entry);
+  }
+  save("golf_players", overrides);
+  await dbSet("golf_players", overrides);
 }
 
 // ─── Rounds / Tee Times ───────────────────────────────────────────────────────
