@@ -149,7 +149,9 @@ export default function ScoreEntry() {
                   }`}
                 >
                   <td className="px-4 py-2 font-medium text-slate-700">{p.name}</td>
-                  <td className="px-3 py-2 text-right text-xs text-slate-400">{p.handicap}</td>
+                  <td className="px-3 py-2 text-right text-xs text-slate-400">
+                    {p.handicaps ? (p.handicaps[`r${day}`] ?? p.handicap ?? 0) : (p.handicap ?? 0)}
+                  </td>
                   <td className="px-3 py-2 text-center">
                     <input
                       type="number"

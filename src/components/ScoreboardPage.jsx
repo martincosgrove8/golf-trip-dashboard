@@ -121,7 +121,9 @@ export default function ScoreboardPage() {
                     </div>
                   )}
                 </div>
-                <div className="text-xs text-slate-400 font-medium shrink-0">Hcp {player?.handicap}</div>
+                <div className="text-xs text-slate-400 font-medium shrink-0">
+                  Hcp {player?.handicaps ? (player.handicaps[`r${day}`] ?? player.handicap ?? 0) : (player?.handicap ?? 0)}
+                </div>
                 <div className="text-base font-bold text-emerald-700 shrink-0">{s.total}</div>
                 <div className="text-xs text-slate-400 shrink-0">pts</div>
                 {isTied && cbLabel && (

@@ -86,18 +86,38 @@ export async function resetScores() {
 
 // ─── Players / Handicaps ──────────────────────────────────────────────────────
 
+// handicaps stored as { r1, r2, r3, r4 } per player (one per round)
 export async function getPlayers() {
   const overrides = await getRemote("golf_players") ?? [];
   return defaultPlayers.map((p) => {
     const o = overrides.find((x) => x.id === p.id);
-    return o ? { ...p, handicap: o.handicap } : p;
+    return o ? { ...p, handicap: o.handicap ?? 0, handicaps: o.handicaps ?? null } : p;
   });
+}
+
+// Get the handicap for a specific round (1-indexed). Falls back to the single handicap value.
+export async function getHandicapForRound(playerId, round) {
+  const players = await getPlayers();
+  const p = players.find((x) => x.id === playerId);
+  if (!p) return 0;
+  if (p.handicaps) return p.handicaps[`r${round}`] ?? p.handicap ?? 0;
+  return p.handicap ?? 0;
 }
 
 export async function setHandicap(playerId, handicap) {
   const overrides = (await getRemote("golf_players")) ?? [];
   const idx = overrides.findIndex((x) => x.id === playerId);
   const entry = { id: playerId, handicap: Number(handicap) };
+  if (idx >= 0) overrides[idx] = { ...overrides[idx], ...entry }; else overrides.push(entry);
+  save("golf_players", overrides);
+  await dbSet("golf_players", overrides);
+}
+
+// Set all 4 round handicaps for a player at once: handicaps = { r1, r2, r3, r4 }
+export async function setHandicaps(playerId, handicaps) {
+  const overrides = (await getRemote("golf_players")) ?? [];
+  const idx = overrides.findIndex((x) => x.id === playerId);
+  const entry = { id: playerId, handicap: handicaps.r1 ?? 0, handicaps };
   if (idx >= 0) overrides[idx] = entry; else overrides.push(entry);
   save("golf_players", overrides);
   await dbSet("golf_players", overrides);

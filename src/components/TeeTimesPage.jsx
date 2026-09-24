@@ -122,9 +122,10 @@ export default function TeeTimesPage() {
                             >
                               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: dotColor(id) }} />
                               {p.name}
-                              {p.handicap > 0 && (
-                                <span className="opacity-60 font-normal">({p.handicap})</span>
-                              )}
+                              {(() => {
+                                const hcp = p.handicaps ? (p.handicaps[`r${selectedDay + 1}`] ?? p.handicap ?? 0) : (p.handicap ?? 0);
+                                return hcp > 0 ? <span className="opacity-60 font-normal">({hcp})</span> : null;
+                              })()}
                             </div>
                           );
                         })}
