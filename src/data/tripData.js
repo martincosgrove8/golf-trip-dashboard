@@ -12,24 +12,25 @@ export const trip = {
 };
 
 // ─── PLAYERS ─────────────────────────────────────────────────────────────────
+// handicaps: R1=Faldo Yellow, R2=Laguna White, R3=Vale do Lobo White, R4=Quinta do Vale White
 export const players = [
-  { id: 1,  name: "Ciaran Rabbett",   handicap: 0 },
-  { id: 2,  name: "David Scott",      handicap: 0 },
-  { id: 3,  name: "Eamon Mangan",     handicap: 0 },
-  { id: 4,  name: "Fergal Ruane",     handicap: 0 },
-  { id: 5,  name: "James Mangan",     handicap: 0 },
-  { id: 6,  name: "John Lennon",      handicap: 0 },
-  { id: 7,  name: "John Wilson",      handicap: 0 },
-  { id: 8,  name: "Kenny Concannon",  handicap: 0 },
-  { id: 9,  name: "Kevin Fallon",     handicap: 0 },
-  { id: 10, name: "Kevin Padden",     handicap: 0 },
-  { id: 11, name: "Martin Cosgrove",  handicap: 0 },
-  { id: 12, name: "Peter Mulry",      handicap: 0 },
-  { id: 13, name: "Brendan Keane",    handicap: 0 },
-  { id: 14, name: "Eugene Galligan",  handicap: 0 },
-  { id: 15, name: "John Mangan",      handicap: 0 },
-  { id: 16, name: "Tom Gruddy",       handicap: 0 },
-  { id: 17, name: "Guest",            handicap: 0 },
+  { id: 1,  name: "Ciaran Rabbett",   handicap: 8,  handicaps: { r1: 8,  r2: 16, r3: 18, r4: 15 } },
+  { id: 2,  name: "David Scott",      handicap: 4,  handicaps: { r1: 4,  r2: 8,  r3: 10, r4: 8  } },
+  { id: 3,  name: "Eamon Mangan",     handicap: 15, handicaps: { r1: 15, r2: 30, r3: 32, r4: 29 } },
+  { id: 4,  name: "Fergal Ruane",     handicap: 22, handicaps: { r1: 22, r2: 42, r3: 45, r4: 41 } },
+  { id: 5,  name: "James Mangan",     handicap: 13, handicaps: { r1: 13, r2: 25, r3: 27, r4: 24 } },
+  { id: 6,  name: "John Lennon",      handicap: 17, handicaps: { r1: 17, r2: 33, r3: 35, r4: 32 } },
+  { id: 7,  name: "John Wilson",      handicap: 4,  handicaps: { r1: 4,  r2: 8,  r3: 9,  r4: 7  } },
+  { id: 8,  name: "Kenny Concannon",  handicap: 16, handicaps: { r1: 16, r2: 30, r3: 33, r4: 29 } },
+  { id: 9,  name: "Kevin Fallon",     handicap: 7,  handicaps: { r1: 7,  r2: 14, r3: 16, r4: 14 } },
+  { id: 10, name: "Kevin Padden",     handicap: 6,  handicaps: { r1: 6,  r2: 12, r3: 14, r4: 12 } },
+  { id: 11, name: "Martin Cosgrove",  handicap: 2,  handicaps: { r1: 2,  r2: 4,  r3: 6,  r4: 4  } },
+  { id: 12, name: "Peter Mulry",      handicap: 5,  handicaps: { r1: 5,  r2: 10, r3: 12, r4: 10 } },
+  { id: 13, name: "Brendan Keane",    handicap: 11, handicaps: { r1: 11, r2: 21, r3: 24, r4: 21 } },
+  { id: 14, name: "Eugene Galligan",  handicap: 14, handicaps: { r1: 14, r2: 27, r3: 29, r4: 26 } },
+  { id: 15, name: "John Mangan",      handicap: 5,  handicaps: { r1: 5,  r2: 10, r3: 12, r4: 10 } },
+  { id: 16, name: "Tom Gruddy",       handicap: 22, handicaps: { r1: 0,  r2: 22, r3: 0,  r4: 0  } },
+  { id: 17, name: "Guest",            handicap: 0,  handicaps: { r1: 0,  r2: 0,  r3: 0,  r4: 0  } },
 ];
 
 // ─── FLIGHTS ─────────────────────────────────────────────────────────────────

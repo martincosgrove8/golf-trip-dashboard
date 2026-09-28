@@ -91,7 +91,7 @@ export async function getPlayers() {
   const overrides = await getRemote("golf_players") ?? [];
   return defaultPlayers.map((p) => {
     const o = overrides.find((x) => x.id === p.id);
-    return o ? { ...p, handicap: o.handicap ?? 0, handicaps: o.handicaps ?? null } : p;
+    return o ? { ...p, handicap: o.handicap ?? p.handicap, handicaps: o.handicaps ?? p.handicaps ?? null } : p;
   });
 }
 
