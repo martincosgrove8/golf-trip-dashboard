@@ -1,82 +1,10 @@
 import { useState, useEffect } from "react";
 import { getRounds, getReleasedFlags, getTeams, getPlayers } from "../data/storage";
-import { Clock, Flag, Users, Lock, Printer } from "lucide-react";
+import { Clock, Flag, Users, Lock } from "lucide-react";
 import PageHeader from "./PageHeader";
 import { fmtTime } from "../utils";
 
-function printAllRounds(rounds, released, players, teams) {
-  function getPlayer(id) {
-    return players.find((p) => p.id === id) ?? { name: `Player ${id}` };
-  }
-  function teamColor(id) {
-    const t = teams.find((t) => t.players.includes(id));
-    return t ? t.color : "#94a3b8";
-  }
 
-  const roundsHtml = rounds.map((r, i) => {
-    if (!released[i]) return "";
-    const groupsHtml = r.groups.map((g) => {
-      const playersHtml = g.players.map((id) => {
-        const p = getPlayer(id);
-        const hcp = p.handicaps ? (p.handicaps[`r${i + 1}`] ?? p.handicap ?? 0) : (p.handicap ?? 0);
-        const color = teamColor(id);
-        return `<span class="player-badge" style="border-left:3px solid ${color}">
-          ${p.name}${hcp > 0 ? ` <span class="hcp">(${hcp})</span>` : ""}
-        </span>`;
-      }).join("");
-      return `<div class="group">
-        <div class="group-time">${fmtTime(g.time)}</div>
-        <div class="group-players">${playersHtml}</div>
-      </div>`;
-    }).join("");
-
-    return `<div class="round">
-      <div class="round-header">
-        <div class="round-label">${r.dayLabel}</div>
-        <div class="round-meta">${r.day} &nbsp;·&nbsp; ${r.course}</div>
-      </div>
-      ${groupsHtml}
-    </div>`;
-  }).join("");
-
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Tee Times — Autumn Golf Getaway 2026</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; color: #1e293b; padding: 24px; }
-    h1 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
-    .subtitle { color: #64748b; font-size: 11px; margin-bottom: 20px; }
-    .round { margin-bottom: 24px; break-inside: avoid; }
-    .round-header { background: #0f172a; color: white; padding: 8px 12px; border-radius: 6px 6px 0 0; }
-    .round-label { font-weight: 700; font-size: 13px; }
-    .round-meta { font-size: 10px; color: #94a3b8; margin-top: 2px; }
-    .group { border: 1px solid #e2e8f0; border-top: none; padding: 10px 12px; display: flex; align-items: flex-start; gap: 16px; }
-    .group:last-child { border-radius: 0 0 6px 6px; }
-    .group-time { font-weight: 700; font-size: 13px; color: #0f172a; min-width: 56px; padding-top: 2px; }
-    .group-players { display: flex; flex-wrap: wrap; gap: 6px; }
-    .player-badge { padding: 3px 8px 3px 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 11px; font-weight: 600; background: #f8fafc; }
-    .hcp { font-weight: 400; color: #94a3b8; }
-    @media print {
-      body { padding: 16px; }
-      .no-print { display: none; }
-    }
-  </style>
-</head>
-<body>
-  <h1>⛳ Tee Times — Autumn Golf Getaway 2026</h1>
-  <div class="subtitle">Vilamoura, Portugal · 2–9 October 2026</div>
-  ${roundsHtml}
-  <script>window.onload = () => window.print();</script>
-</body>
-</html>`;
-
-  const w = window.open("", "_blank");
-  w.document.write(html);
-  w.document.close();
-}
 
 export default function TeeTimesPage() {
   const [rounds, setRounds] = useState([]);
@@ -126,14 +54,6 @@ export default function TeeTimesPage() {
     <div>
       <div className="flex items-start justify-between mb-6">
         <PageHeader eyebrow="Schedule" title="Tee Times" subtitle="Starting times and playing groups by round" />
-        {anyReleased && (
-          <button
-            onClick={() => printAllRounds(rounds, released, players, teams)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:border-emerald-400 hover:text-emerald-700 transition-colors shadow-sm shrink-0 mt-1"
-          >
-            <Printer size={13} /> Print / PDF
-          </button>
-        )}
       </div>
 
       {!anyReleased ? (
