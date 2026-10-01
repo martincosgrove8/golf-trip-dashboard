@@ -102,7 +102,7 @@ export default function ScoreboardPage() {
         ))}
         <button
           onClick={() => { setView(TOTAL_VIEW); setSelectedPlayer(null); }}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+          className={`w-full mt-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
             isTotal
               ? "bg-slate-800 text-white border-slate-800"
               : "bg-white text-slate-600 border-slate-300 hover:border-slate-400"
